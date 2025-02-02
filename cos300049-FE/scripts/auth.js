@@ -1,48 +1,44 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const signupForm = document.getElementById("signup-form");
-    const loginForm = document.getElementById("login-form");
+const API_URL = "http://localhost:3000";
 
-    if (signupForm) {
-        signupForm.addEventListener("submit", (event) => {
-            event.preventDefault();
-            const username = document.getElementById("new-username").value.trim();
-            const password = document.getElementById("new-password").value.trim();
+// Handle Login
+document.getElementById("login-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("login-username").value;
+    const password = document.getElementById("login-password").value;
 
-            if (!username || !password) {
-                alert("Username and password cannot be empty!");
-                return;
-            }
+    const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+    });
 
-            let users = JSON.parse(localStorage.getItem("users")) || [];
-
-            if (users.some(user => user.username === username)) {
-                alert("Username already exists!");
-                return;
-            }
-
-            users.push({ username, password });
-            localStorage.setItem("users", JSON.stringify(users));
-            alert("Signup successful! You can now log in.");
-            window.location.href = "login.html";
-        });
+    const data = await response.json();
+    if (data.success) {
+        alert("Login successful!");
+        localStorage.setItem("user", username);
+        window.location.href = "profile.html";
+    } else {
+        alert("Invalid credentials");
     }
+});
 
-    if (loginForm) {
-        loginForm.addEventListener("submit", (event) => {
-            event.preventDefault();
-            const username = document.getElementById("username").value.trim();
-            const password = document.getElementById("password").value.trim();
+// Handle Signup
+document.getElementById("signup-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("signup-username").value;
+    const password = document.getElementById("signup-password").value;
 
-            let users = JSON.parse(localStorage.getItem("users")) || [];
-            const user = users.find(user => user.username === username && user.password === password);
+    const response = await fetch(`${API_URL}/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+    });
 
-            if (user) {
-                alert("Login successful!");
-                localStorage.setItem("loggedInUser", username);
-                window.location.href = "profile.html";
-            } else {
-                alert("Invalid username or password!");
-            }
-        });
+    const data = await response.json();
+    if (data.success) {
+        alert("Signup successful! Please login.");
+        window.location.href = "login.html";
+    } else {
+        alert(data.message);
     }
 });

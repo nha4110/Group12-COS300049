@@ -18,6 +18,26 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));  // Go one level up and find index.html
 });
 
+// Serve signup.html
+app.get('/signup.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'signup.html')); // Serve signup.html from parent directory
+});
+
+// Serve login.html
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'login.html')); // Serve login.html from parent directory
+});
+
+// Serve profile.html
+app.get('/profile.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'profile.html')); // Serve profile.html from parent directory
+});
+
+// Serve index.html (just to keep the default route)
+app.get('/index.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'));  // Serve index.html
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`✅ Server running at http://localhost:${PORT}`);
