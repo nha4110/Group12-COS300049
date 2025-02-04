@@ -5,6 +5,11 @@
     <title>Document</title>
 </head>
 <body>
-    profile
+    <script>
+        if (!localStorage.getItem("user")) {
+            alert("You must be logged in to view this page!");
+            window.location.href = "login.html";
+        }
+    </script>    
 </body>
 </html>

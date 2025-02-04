@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = 3000;
@@ -8,37 +10,52 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Handle favicon.ico request to prevent 404 errors
-app.get('/favicon.ico', (req, res) => {
-    res.status(204).end(); // No Content response
-});
-
-// Serve index.html from the parent directory (outside the 'server' folder)
+// Serve index.html
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'index.html'));  // Go one level up and find index.html
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 // Serve signup.html
-app.get('/signup.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'signup.html')); // Serve signup.html from parent directory
+app.get('/signup', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'signup.html'));
 });
 
 // Serve login.html
-app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'login.html')); // Serve login.html from parent directory
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'login.html'));
 });
 
 // Serve profile.html
-app.get('/profile.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'profile.html')); // Serve profile.html from parent directory
+app.get('/profile', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'profile.html'));
 });
 
-// Serve index.html (just to keep the default route)
-app.get('/index.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'index.html'));  // Serve index.html
+// Handle login POST request
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    const usersFilePath = path.join(__dirname, '../data/users.json');
+
+    if (!fs.existsSync(usersFilePath)) {
+        return res.status(400).json({ success: false, message: 'No users found' });
+    }
+
+    const users = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
+    const user = users.find(u => u.username === username);
+
+    if (!user) {
+        return res.status(400).json({ success: false, message: 'Invalid username or password' });
+    }
+
+    // If using bcrypt, check hashed password
+    if (!bcrypt.compareSync(password, user.password)) {
+        return res.status(400).json({ success: false, message: 'Invalid username or password' });
+    }
+
+    // Login successful
+    res.json({ success: true });
 });
 
-// Start Server
+// Start server
 app.listen(PORT, () => {
     console.log(`✅ Server running at http://localhost:${PORT}`);
 });
