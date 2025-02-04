@@ -10,24 +10,12 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve index.html
+// Serve static files (index.html, signup.html, etc.)
+app.use(express.static(path.join(__dirname, '..')));
+
+// Serve index.html by default
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
-});
-
-// Serve signup.html
-app.get('/signup', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'signup.html'));
-});
-
-// Serve login.html
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'login.html'));
-});
-
-// Serve profile.html
-app.get('/profile', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'profile.html'));
 });
 
 // Handle login POST request
