@@ -1,1 +1,63 @@
-[]
+{
+    "Art": [
+      {
+        "title": "Art NFT 1",
+        "creator": "Artist A",
+        "price": "1.5 ETH",
+        "image": "transactions/assets/nft-images/art1.jpg"
+      },
+      {
+        "title": "Art NFT 2",
+        "creator": "Artist B",
+        "price": "2.3 ETH",
+        "image": "transactions/assets/nft-images/art2.jpg"
+      },
+      {
+        "title": "Art NFT 3",
+        "creator": "Artist C",
+        "price": "1.8 ETH",
+        "image": "transactions/assets/nft-images/art3.jpg"
+      }
+    ],
+    "Music": [
+      {
+        "title": "Music NFT 1",
+        "creator": "Musician A",
+        "price": "0.9 ETH",
+        "image": "transactions/assets/nft-images/music1.jpg"
+      },
+      {
+        "title": "Music NFT 2",
+        "creator": "Musician B",
+        "price": "1.1 ETH",
+        "image": "transactions/assets/nft-images/music2.jpg"
+      },
+      {
+        "title": "Music NFT 3",
+        "creator": "Musician C",
+        "price": "1.4 ETH",
+        "image": "transactions/assets/nft-images/music3.jpg"
+      }
+    ],
+    "Photography": [
+      {
+        "title": "Photo NFT 1",
+        "creator": "Photographer A",
+        "price": "2.0 ETH",
+        "image": "transactions/assets/nft-images/photo1.jpg"
+      },
+      {
+        "title": "Photo NFT 2",
+        "creator": "Photographer B",
+        "price": "2.2 ETH",
+        "image": "transactions/assets/nft-images/photo2.jpg"
+      },
+      {
+        "title": "Photo NFT 3",
+        "creator": "Photographer C",
+        "price": "2.5 ETH",
+        "image": "transactions/assets/nft-images/photo3.jpg"
+      }
+    ]
+  }
+  
