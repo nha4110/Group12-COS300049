@@ -103,13 +103,13 @@ h1 {
 }
 
 /* Left-side menu */
-#leftside-menu {
+#leftside-menu a{
     text-decoration: none;
     color: red;
     font-size: 20px;
 }
 
 /* Right-side menu */
-#rightside-menu {
+#rightside-menu a{
     text-decoration: none;
 }
