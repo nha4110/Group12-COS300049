@@ -94,16 +94,22 @@ h1 {
     margin: 5px 0;
     color: #333;
 }
+/* Parent container for menu items */
+#menu-container {
+    display: flex;
+    justify-content: space-between; /* Pushes elements to opposite sides */
+    align-items: center; /* Aligns items vertically */
+    width: 100%; /* Full width */
+}
+
+/* Left-side menu */
 #leftside-menu {
-    text-align: left;
     text-decoration: none;
     color: red;
     font-size: 20px;
 }
+
+/* Right-side menu */
 #rightside-menu {
-    text-align: right;
     text-decoration: none;
-}
-#leftside-menu, #rightside-menu {
-    display: inline-block;
 }
