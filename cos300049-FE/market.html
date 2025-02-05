@@ -12,12 +12,18 @@
     <section id="market-nft-list"></section>
 
     <!-- NFT Details Section -->
-    <section id="nft-details" style="display: none;">
+    <section id="nft-details" style="display: none;" aria-hidden="true">
         <h2>NFT Details</h2>
         <div id="nft-info"></div>
-        <button onclick="closeNFTDetails()">Close</button>
+        <button id="close-details-btn">Close</button>
     </section>
 
     <script src="scripts/utils.js"></script>
+    <script>
+        // Ensure close button works correctly
+        document.getElementById("close-details-btn").addEventListener("click", () => {
+            document.getElementById("nft-details").style.display = "none";
+        });
+    </script>
 </body>
 </html>

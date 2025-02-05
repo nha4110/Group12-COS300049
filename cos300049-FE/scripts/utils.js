@@ -67,14 +67,20 @@ function loadMarketNFTs(category) {
             const marketContainer = document.getElementById("market-nft-list");
             marketContainer.innerHTML = ""; // Clear previous items
 
+            if (!data.collections) {
+                console.error("Error: 'collections' key is missing in nfts.json");
+                marketContainer.textContent = "Error loading NFTs.";
+                return;
+            }
+
             if (category === "All") {
                 // Load all NFTs from all categories
-                for (const key in data) {
-                    data[key].forEach(nft => createNFTCard(nft, marketContainer));
-                }
-            } else if (category in data) {
+                Object.values(data.collections).forEach(categoryItems => {
+                    categoryItems.forEach(nft => createNFTCard(nft, marketContainer));
+                });
+            } else if (data.collections[category]) {
                 // Load only NFTs from the selected category
-                data[category].forEach(nft => createNFTCard(nft, marketContainer));
+                data.collections[category].forEach(nft => createNFTCard(nft, marketContainer));
             } else {
                 marketContainer.textContent = "No NFTs found for this category.";
             }
@@ -82,7 +88,8 @@ function loadMarketNFTs(category) {
         .catch(error => console.error("Error loading market NFTs:", error));
 }
 
-// Helper function to create an NFT card
+
+// Function to create an NFT card and add click event to show details
 function createNFTCard(nft, container) {
     const nftDiv = document.createElement("div");
     nftDiv.classList.add("nft-item");
@@ -100,16 +107,44 @@ function createNFTCard(nft, container) {
     const price = document.createElement("p");
     price.textContent = `Price: ${nft.price}`;
 
-    const blockchainAddress = document.createElement("p");
-    blockchainAddress.textContent = `Address: ${nft.address}`;
-
+    // Append elements to NFT card
     nftDiv.appendChild(img);
     nftDiv.appendChild(title);
     nftDiv.appendChild(creator);
     nftDiv.appendChild(price);
-    nftDiv.appendChild(blockchainAddress);
+
+    // Add event listener to show NFT details when clicked
+    nftDiv.addEventListener("click", () => showNFTDetails(nft));
+
     container.appendChild(nftDiv);
 }
+
+
+
+// Function to display NFT details
+function showNFTDetails(nft) {
+    const detailsSection = document.getElementById("nft-details");
+    const detailsContainer = document.getElementById("nft-info");
+
+    // Populate the details section with the blockchain address
+    detailsContainer.innerHTML = `
+        <img src="${nft.image}" alt="${nft.title}" style="width:200px; height:auto;">
+        <h3>${nft.title}</h3>
+        <p><strong>Creator:</strong> ${nft.creator}</p>
+        <p><strong>Price:</strong> ${nft.price}</p>
+        <p><strong>Address:</strong> ${nft.blockchainAddress}</p> <!-- Blockchain address is displayed here -->
+    `;
+
+    // Show the details section
+    detailsSection.style.display = "block";
+}
+
+
+// Function to close NFT details
+function closeNFTDetails() {
+    document.getElementById("nft-details").style.display = "none";
+}
+
 
 // Function to go to the market page filtered by category
 function goToMarket(category) {
