@@ -1,0 +1,96 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    padding: 0;
+    background-color: #f8f9fa;
+    text-align: center;
+}
+
+/* Section Styling */
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* Filter Section */
+#filter {
+    margin-bottom: 20px;
+}
+
+#filter button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.3s;
+}
+
+#filter button:hover {
+    background-color: #0056b3;
+}
+
+/* NFT Collection on Index Page */
+#nft-collection {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* NFT Item Styling */
+.nft-collection-item, .nft-item {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 10px;
+    width: 150px;
+    text-align: center;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nft-collection-item img, 
+.nft-item img {
+    width: 100px; /* Limit width */
+    height: 100px; /* Limit height */
+    object-fit: cover; /* Ensure aspect ratio is maintained */
+    border-radius: 5px;
+}
+
+/* Collection Title */
+.nft-collection-item p {
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+/* Go to Market Button */
+.nft-collection-item button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.nft-collection-item button:hover {
+    background-color: #218838;
+}
+
+/* Market Page Layout */
+#market-nft-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+.nft-item p {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #333;
+}
