@@ -104,3 +104,6 @@ h1 {
     text-align: right;
     text-decoration: none;
 }
+#leftside-menu, #rightside-menu {
+    display: inline-block;
+}
