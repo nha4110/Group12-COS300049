@@ -94,3 +94,13 @@ h1 {
     margin: 5px 0;
     color: #333;
 }
+.leftside-menu {
+    text-align: left;
+    text-decoration: none;
+    color: red;
+    font-size: 20px;
+}
+.rightside-menu {
+    text-align: right;
+    text-decoration: none;
+}
