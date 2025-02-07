@@ -38,12 +38,6 @@ button:hover {
 }
 
 
-/* Float signup buttons and add an equal width */
-.signupbtn {
-  float: center;
-  width: 50%;
-}
-
 /* Add padding to container elements */
 .container {
   padding: 16px;
