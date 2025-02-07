@@ -40,7 +40,7 @@ button:hover {
 
 /* Float signup buttons and add an equal width */
 .signupbtn {
-  float: left;
+  float: center;
   width: 50%;
 }
 
