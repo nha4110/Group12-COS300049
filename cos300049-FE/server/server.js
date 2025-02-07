@@ -2,26 +2,40 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const path = require("path");
 
 const app = express();
-const PORT = 3000;
+const PORT = 4000;
+
+// ✅ Change this path to serve `index.html` from `cos300049-FE`
+const ROOT_DIR = path.join(__dirname, ".."); 
 
 app.use(cors());
 app.use(bodyParser.json());
 
-const USERS_FILE = "data/users.json";
+// ✅ Serve static files from `cos300049-FE` (where index.html is located)
+app.use(express.static(ROOT_DIR));
 
-// Read users.json
+// ✅ Default route to serve `index.html`
+app.get("/", (req, res) => {
+    res.sendFile(path.join(ROOT_DIR, "index.html"));
+});
+
+// ✅ Ensure users.json exists
+const USERS_FILE = path.join(__dirname, "data", "users.json");
+
 function readUsers() {
+    if (!fs.existsSync(USERS_FILE)) {
+        return [];
+    }
     return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
 }
 
-// Write to users.json
 function writeUsers(data) {
     fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
-// Signup Route
+// ✅ User routes
 app.post("/signup", (req, res) => {
     const { username, password } = req.body;
     let users = readUsers();
@@ -36,7 +50,6 @@ app.post("/signup", (req, res) => {
     res.status(201).json({ message: "Signup successful!" });
 });
 
-// Login Route
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
     let users = readUsers();
@@ -49,7 +62,6 @@ app.post("/login", (req, res) => {
     res.json({ message: "Login successful!", username, balance: user.balance });
 });
 
-// Get User Balance
 app.get("/balance/:username", (req, res) => {
     const { username } = req.params;
     let users = readUsers();
@@ -62,7 +74,6 @@ app.get("/balance/:username", (req, res) => {
     res.json({ balance: user.balance });
 });
 
-// Update Balance
 app.post("/update-balance", (req, res) => {
     const { username, balance } = req.body;
     let users = readUsers();
@@ -78,6 +89,7 @@ app.post("/update-balance", (req, res) => {
     res.json({ message: "Balance updated!", balance });
 });
 
+// ✅ Start the server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
