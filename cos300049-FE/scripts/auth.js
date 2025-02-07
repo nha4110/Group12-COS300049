@@ -9,7 +9,7 @@ document.getElementById("signup-form")?.addEventListener("submit", async (e) => 
     const response = await fetch(`${API_URL}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, balance: 0 }),
     });
 
     const data = await response.json();
@@ -37,19 +37,48 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     const data = await response.json();
     
     if (response.ok) {
-        localStorage.setItem("user", username);
+        localStorage.setItem("user", JSON.stringify(data)); // Save user data including balance
         alert("Login successful!");
-        window.location.href = "profile.html";
+        window.location.href = "index.html";
     } else {
         alert(data.message);
     }
 });
 
-// Ensure user is logged in before accessing profile.html
-if (window.location.pathname.includes("profile.html")) {
-    const user = localStorage.getItem("user");
-    if (!user) {
-        alert("You must be logged in to view this page!");
-        window.location.href = "login.html";
+// Fetch and display user balance
+function displayUserBalance() {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user) {
+        document.getElementById("balance-info").innerHTML = `${user.username} has ${user.balance} ETH`;
+        document.getElementById("balance-container").style.display = "block";
     }
+}
+
+// Handle balance update
+document.getElementById("apply-balance")?.addEventListener("click", async () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    const newBalance = parseFloat(document.getElementById("balance-input").value);
+
+    if (!user || isNaN(newBalance) || newBalance < 0) {
+        alert("Invalid balance amount!");
+        return;
+    }
+
+    user.balance = newBalance;
+    localStorage.setItem("user", JSON.stringify(user));
+
+    // Send update to the server
+    await fetch(`${API_URL}/update-balance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user.username, balance: newBalance }),
+    });
+
+    alert("Balance updated successfully!");
+    displayUserBalance();
+});
+
+// Ensure balance is displayed on index.html
+if (window.location.pathname.includes("index.html")) {
+    displayUserBalance();
 }

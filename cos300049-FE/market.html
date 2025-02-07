@@ -5,25 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market</title>
     <link rel="stylesheet" href="Style/index-market.css">
+
 </head>
 <body data-page="market">
     <h1>Market</h1>
 
+    <!-- NFT List Section -->
     <section id="market-nft-list"></section>
 
-    <!-- NFT Details Section -->
-    <section id="nft-details" style="display: none;" aria-hidden="true">
-        <h2>NFT Details</h2>
-        <div id="nft-info"></div>
-        <button id="close-details-btn">Close</button>
-    </section>
+    <!-- NFT Full View Section -->
+    <section id="nft-details"></section>
 
     <script src="scripts/utils.js"></script>
-    <script>
-        // Ensure close button works correctly
-        document.getElementById("close-details-btn").addEventListener("click", () => {
-            document.getElementById("nft-details").style.display = "none";
-        });
-    </script>
 </body>
 </html>
