@@ -113,3 +113,73 @@ h1 {
 #rightside-menu a{
     text-decoration: none;
 }
+
+
+/* NFT grid layout */
+#market-nft-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 20px;
+}
+
+.nft-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.nft-item:hover {
+    transform: scale(1.05);
+}
+
+.nft-item img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+}
+
+/* NFT Full View */
+#nft-details {
+    display: none;
+    padding: 20px;
+    text-align: center;
+}
+
+.nft-fullview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nft-full-image {
+    width: 250px;
+    height: auto;
+    margin-bottom: 15px;
+}
+
+.nft-full-info {
+    text-align: center;
+}
+
+#buy-button, #back-to-market {
+    padding: 10px;
+    margin-top: 10px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#buy-button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+}
+
+#back-to-market {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+}

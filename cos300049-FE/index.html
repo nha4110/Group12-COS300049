@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homepage</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>NFT Marketplace</title>
     <link rel="stylesheet" href="Style/index-market.css">
 </head>
 <body data-page="index">
-    <!-- Menu -->
     <header id="menu-container">
         <nav id="leftside-menu">
             <a href="/index.html">🫂👁️🫦👁️</a>
@@ -21,7 +19,12 @@
     
     <h1>NFT Marketplace</h1>
 
-    <!-- Filter Section -->
+    <div id="user-balance-container">
+        <p id="user-balance">Loading balance...</p>
+        <input type="number" id="balance-input" min="0" max="10" value="0">
+        <button onclick="updateBalance()">Update Balance</button>
+    </div>
+
     <section id="filter">
         <button onclick="filterCollection('All')">All</button>
         <button onclick="filterCollection('Art')">Art</button>
@@ -29,9 +32,9 @@
         <button onclick="filterCollection('Photography')">Photography</button>
     </section>
 
-    <!-- NFT Collection -->
     <section id="nft-collection"></section>
 
     <script src="scripts/utils.js"></script>
+    <script src="scripts/auth.js"></script>
 </body>
 </html>
