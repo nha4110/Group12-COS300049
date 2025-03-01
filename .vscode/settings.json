@@ -14,6 +14,22 @@
             "username": "root",
             "connectionTimeout": 30,
             "password": "yourpassword"
+        },
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "previewLimit": 50,
+            "server": "ep-empty-dream-a8woxm2q-pooler.eastus2.azure.neon.tech",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "NFTdb",
+            "database": "NFTdb",
+            "username": "NFTdb_owner",
+            "password": "npg_wRYlsH14JXhG",
+            "connectionTimeout": 30
         }
     ]
 }
