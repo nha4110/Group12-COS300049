@@ -1,6 +1,7 @@
 {
     "sqltools.connections": [
         {
+
             "mysqlOptions": {
                 "authProtocol": "default",
                 "enableSsl": "Disabled"
@@ -22,6 +23,8 @@
             "password": "yourpassword"
         },
         {
+
+
             "pgOptions": {
                 "ssl": {
                     "rejectUnauthorized": true
