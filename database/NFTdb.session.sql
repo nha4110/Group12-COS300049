@@ -7,3 +7,5 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 SELECT * FROM users;
+
+SELECT * FROM assets
