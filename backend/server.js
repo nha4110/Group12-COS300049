@@ -74,62 +74,25 @@ app.get("/", (req, res) => {
     res.send("✅ Server is running! Welcome to the NFT API.");
 });
 
-// ✅ Get all users
-app.get("/users", async (req, res) => {
+// ✅ Dynamic Route to Fetch Any Table
+app.get("/:table", async (req, res) => {
+    const { table } = req.params;
+
+    // Prevent SQL injection by checking table name against existing tables
     try {
-        const result = await pool.query("SELECT id, username, created_at FROM users");
+        const checkTable = await pool.query(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
+            [table]
+        );
+
+        if (checkTable.rows.length === 0) {
+            return res.status(404).json({ error: `Table '${table}' does not exist` });
+        }
+
+        const result = await pool.query(`SELECT * FROM ${table}`);
         res.json(result.rows);
     } catch (error) {
-        console.error("❌ Error fetching users:", error);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
-
-// ✅ Add a new user
-app.post("/users", async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: "Username and password are required" });
-    }
-
-    try {
-        const result = await pool.query(
-            "INSERT INTO users (username, password, created_at) VALUES ($1, $2, NOW()) RETURNING id, username, created_at",
-            [username, password]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (error) {
-        console.error("❌ Error adding user:", error);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
-
-// ✅ Get a user by ID
-app.get("/users/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query("SELECT id, username, created_at FROM users WHERE id = $1", [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        res.json(result.rows[0]);
-    } catch (error) {
-        console.error("❌ Error fetching user:", error);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
-
-// ✅ Delete a user by ID
-app.delete("/users/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *", [id]);
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        res.json({ message: "User deleted successfully" });
-    } catch (error) {
-        console.error("❌ Error deleting user:", error);
+        console.error(`❌ Error fetching data from table '${table}':`, error);
         res.status(500).json({ error: "Internal server error" });
     }
 });
