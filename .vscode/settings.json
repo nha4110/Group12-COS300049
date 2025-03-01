@@ -1,6 +1,7 @@
 {
     "sqltools.connections": [
         {
+
             "mysqlOptions": {
                 "authProtocol": "default",
                 "enableSsl": "Disabled"
@@ -9,6 +10,12 @@
             "server": "localhost",
             "port": 3306,
             "driver": "MySQL",
+
+            "name": "MySQL-Connection",
+            "database": "testdb",
+            "username": "root",
+            "askForPassword": true,
+
             "name": "assignemnt2",
             "database": "group12_project",
             "username": "root",
@@ -16,6 +23,8 @@
             "password": "yourpassword"
         },
         {
+
+
             "pgOptions": {
                 "ssl": {
                     "rejectUnauthorized": true
@@ -30,6 +39,7 @@
             "username": "NFTdb_owner",
             "password": "npg_wRYlsH14JXhG",
             "connectionTimeout": 30
+
         }
     ]
 }
