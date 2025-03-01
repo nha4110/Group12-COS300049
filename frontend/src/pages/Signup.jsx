@@ -1,71 +1,100 @@
-{/*
-Nguyen Ngoc Huy Hoang - 105514373
-Chung Dung Toan - 105514412
-Lu Nhat Hoang -  105234956
-*/ }
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signup } from "../scripts/auth.jsx";
-import { AppBar, Toolbar, Typography, Container, TextField, Button, Paper, Box } from "@mui/material";
+import { Container, TextField, Button, Paper, Typography, Box } from "@mui/material";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
-    const result = signup(username, password);
-    if (result.success) {
-      setMessage("✅ Account created successfully!");
-      setTimeout(() => navigate("/login"), 1500);
-    } else {
-      setMessage(`⚠️ ${result.message}`);
+    try {
+      const result = await signup(username, email, password);
+
+      if (result.success) {
+        setMessage("✅ Account created successfully!");
+        setTimeout(() => navigate("/login"), 1500);
+      } else {
+        setMessage(`⚠️ ${result.message}`);
+      }
+    } catch (error) {
+      setMessage("⚠️ An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <>
-      {/* Signup Form getting the user info and store it for later use */}
-      <Container maxWidth="sm">
-        <Paper elevation={3} sx={{ padding: 4, marginTop: 5, textAlign: "center" }}>
-          <Typography variant="h5" gutterBottom>
-            Sign Up
-          </Typography>
+    <Container component="main" maxWidth="xs">
+      <Paper elevation={3} sx={{ marginTop: 8, padding: 3 }}>
+        <Typography component="h1" variant="h5" align="center">
+          Sign Up
+        </Typography>
 
-          {message && <Typography color="error">{message}</Typography>}
+        {message && (
+          <Box sx={{ mt: 2, p: 1, bgcolor: message.includes("✅") ? "#e8f5e9" : "#ffebee", borderRadius: 1 }}>
+            <Typography>{message}</Typography>
+          </Box>
+        )}
 
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Username"
-              variant="outlined"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Password"
-              type="password"
-              variant="outlined"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <Box mt={2}>
-              <Button variant="contained" color="primary" fullWidth type="submit">
-                Sign Up
-              </Button>
-            </Box>
-          </form>
-        </Paper>
-      </Container>
-    </>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="username"
+            label="Username"
+            name="username"
+            autoComplete="username"
+            autoFocus
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type="password"
+            id="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, mb: 2 }}
+            disabled={loading}
+          >
+            {loading ? "Creating account..." : "Sign Up"}
+          </Button>
+        </Box>
+      </Paper>
+    </Container>
   );
 };
 

@@ -1,112 +1,60 @@
-{/*
-Nguyen Ngoc Huy Hoang - 105514373
-Chung Dung Toan - 105514412
-Lu Nhat Hoang -  105234956
-*/ }
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
-import SearchAppBar from "../component/AppBar"; // bar and some style mui
-import { login } from "../scripts/auth.jsx"; // auth handle sign up and login logic 
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../api/authApi";
+import { useAuth } from "../scripts/AuthContext"; // ✅ Import useAuth
 
-// use local storage to store user info like username and password for other use
-export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+const Login = () => {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const { dispatch } = useAuth(); // ✅ Access Auth Context
 
-  useEffect(() => {
-    // Remove default margin and padding from body
-    document.body.style.margin = "0";
-    document.body.style.padding = "0";
-  }, []);
+  // Handle Input Changes
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  // handle login logic
-  const handleSubmit = (event) => {
-    event.preventDefault(); // Prevent form default submission
-    const result = login(username, password);
+  // Handle Form Submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    if (result.success) {
-      navigate("/profile"); // Redirect to profile on successful login
+    const response = await login(form.username, form.password); // Call login API
+
+    if (response.success) {
+      setMessage("✅ Login successful!");
+      dispatch({ type: "LOGIN", payload: response.user }); // ✅ Update auth state
+      navigate("/profile"); // Redirect on success
     } else {
-      alert(result.message); // Show error message if login fails
+      setMessage(`❌ ${response.message}`); // Show error message
     }
   };
 
   return (
-    <>
-      <div className="login-container" style={styles.container}>
-        <h2>Login</h2>
-        <form id="login-form" onSubmit={handleSubmit} style={styles.form}>
-          {/* Username Input */}
-          <label htmlFor="username" style={styles.label}>Username:</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={styles.input}
-          />
-
-          {/* Password Input */}
-          <label htmlFor="password" style={styles.label}>Password:</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={styles.input}
-          />
-
-          {/* Sign Up and Login Buttons */}
-          <button type="button" onClick={() => navigate("/signup")}>
-            Sign Up
-          </button>
-          <button type="submit" style={styles.button}>Login</button>
-        </form>
-      </div>
-    </>
+    <div>
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          value={form.username}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
+        <button type="button" onClick={() => navigate("/signup")}>Go to Signup</button> {/* New button */}
+        <button type="submit">Login</button>
+      </form>
+      <p>{message}</p>
+    </div>
   );
-}
-
-// css for login page
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "70vh",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    width: "300px",
-    gap: "10px",
-  },
-  label: {
-    fontSize: "16px",
-    fontWeight: "bold",
-  },
-  input: {
-    padding: "12px",
-    fontSize: "16px",
-    width: "100%",
-    boxSizing: "border-box",
-    border: "1px solid #ccc",
-    borderRadius: "5px",
-  },
-  button: {
-    padding: "12px",
-    fontSize: "16px",
-    width: "100%",
-    backgroundColor: "#007BFF",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  }
 };
+
+export default Login;

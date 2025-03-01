@@ -1,104 +1,164 @@
-require("dotenv").config(); // Load environment variables
-
+require("dotenv").config();
 const express = require("express");
 const { Pool } = require("pg");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
-const session = require("express-session");
-const PgSession = require("connect-pg-simple")(session);
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Use environment variables
+// ✅ Database Connection
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-// ✅ Auto-reconnect mechanism
-async function checkDBConnection(retries = 5) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const client = await pool.connect();
-            console.log("✅ Connected to PostgreSQL!");
-            client.release();
-            await initializeDatabase(); // Ensure tables exist
-            return;
-        } catch (error) {
-            console.error(`❌ Database connection failed. Retrying... (${i + 1}/${retries})`);
-            await new Promise(res => setTimeout(res, 5000)); // Wait 5 seconds before retrying
-        }
-    }
-    console.error("❌ Could not connect to the database after multiple attempts.");
-    process.exit(1);
-}
-checkDBConnection();
-
-// ✅ Initialize Database
-async function initializeDatabase() {
-    const dbPath = path.join(__dirname, "../database/NFTdb.session.sql").replace(/\\/g, "/");
-
-    if (!fs.existsSync(dbPath)) {
-        console.error(`❌ Error: SQL file not found at ${dbPath}`);
-        process.exit(1);
-    }
-
-    try {
-        const sqlScript = fs.readFileSync(dbPath, "utf8");
-        await pool.query(sqlScript);
-        console.log("✅ Database and tables initialized.");
-    } catch (error) {
-        console.error("❌ Error executing NFTdb.session.sql:", error);
-        process.exit(1);
-    }
-}
-
-// ✅ Session storage using PostgreSQL
-app.use(
-    session({
-        store: new PgSession({ pool }),
-        secret: process.env.SESSION_SECRET || "fallback-secret",
-        resave: false,
-        saveUninitialized: false,
-        cookie: { secure: false } // Set to true in production with HTTPS
-    })
-);
-
-// ✅ Default route
+// ✅ Root Route (Fixes "Cannot GET /")
 app.get("/", (req, res) => {
-    res.send("✅ Server is running! Welcome to the NFT API.");
+  res.send("🚀 API is running!");
 });
 
-// ✅ Dynamic Route to Fetch Any Table
-app.get("/:table", async (req, res) => {
-    const { table } = req.params;
+// ✅ Signup Route (Improved)
+app.post("/signup", async (req, res) => {
+  const { username, email, password } = req.body;
 
-    // Prevent SQL injection by checking table name against existing tables
-    try {
-        const checkTable = await pool.query(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
-            [table]
-        );
-
-        if (checkTable.rows.length === 0) {
-            return res.status(404).json({ error: `Table '${table}' does not exist` });
-        }
-
-        const result = await pool.query(`SELECT * FROM ${table}`);
-        res.json(result.rows);
-    } catch (error) {
-        console.error(`❌ Error fetching data from table '${table}':`, error);
-        res.status(500).json({ error: "Internal server error" });
+  try {
+    // Check if user exists
+    const existingUser = await pool.query(
+      "SELECT id FROM users WHERE username = $1 OR email = $2",
+      [username, email]
+    );
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Username or email already exists." });
     }
+
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query(
+      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
+      [username, email, hashedPassword]
+    );
+
+    res.json({ success: true, message: "User registered successfully." });
+  } catch (error) {
+    console.error("❌ Signup Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
 });
 
-// ✅ Start server
+// ✅ Login Route (Improved)
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    console.log(`🔍 Checking user: ${username}`);
+
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+
+    console.log(`📌 Query result: `, result.rows);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid username or password." });
+    }
+
+    const user = result.rows[0];
+
+    // Check if password is hashed (prevents bcrypt error for old accounts)
+    const passwordMatch = user.password.startsWith("$2a$")
+      ? await bcrypt.compare(password, user.password)
+      : password === user.password; // Fallback for old plaintext passwords
+
+    console.log(`🔑 Password match: ${passwordMatch}`);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ success: false, message: "Invalid username or password." });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      process.env.JWT_SECRET || "default_secret_key",
+      { expiresIn: "1h" }
+    );
+
+    res.json({ success: true, token });
+  } catch (error) {
+    console.error("❌ Login Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+// ✅ Authentication Middleware
+const isAuthenticated = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+
+// ✅ Get Current User
+app.get("/user", isAuthenticated, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [
+      req.user.userId
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    console.error("❌ Get Current User Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+// ✅ Get All Users (Admin Feature)
+app.get("/users", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, username, email FROM users");
+    res.json({ success: true, users: result.rows });
+  } catch (error) {
+    console.error("❌ Get Users Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+// ✅ Get Profile (Self Info)
+app.get("/profile", isAuthenticated, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [
+      req.user.userId
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Profile not found" });
+    }
+
+    res.json({ success: true, profile: result.rows[0] });
+  } catch (error) {
+    console.error("❌ Get Profile Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+// ✅ Logout (Token-based Logout)
+app.post("/logout", (req, res) => {
+  res.json({ success: true, message: "Logged out successfully." });
+});
+
+// ✅ Start Server
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

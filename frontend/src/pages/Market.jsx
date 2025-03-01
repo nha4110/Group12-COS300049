@@ -10,6 +10,7 @@ import nftData from "../scripts/nftData";
 import SearchAppBar, { useBalance } from "../component/AppBar";
 import { Container, Grid, Card, CardMedia, CardContent, Typography, Button } from "@mui/material";
 
+
 // getting the data from other file
 const Market = () => {
     const { collectionName } = useParams();
