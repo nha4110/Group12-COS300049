@@ -1,101 +1,82 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signup } from "../scripts/auth.jsx";
-import { Container, TextField, Button, Paper, Typography, Box } from "@mui/material";
+import { signup } from "../api/authApi";
+import { Container, TextField, Button, Typography, Box } from "@mui/material";
 
-const SignUp = () => {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+const Signup = () => {
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+    const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-    try {
-      const result = await signup(username, email, password);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(""); // Clear previous errors
 
-      if (result.success) {
-        setMessage("✅ Account created successfully!");
-        setTimeout(() => navigate("/login"), 1500);
-      } else {
-        setMessage(`⚠️ ${result.message}`);
-      }
-    } catch (error) {
-      setMessage("⚠️ An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        // ✅ Basic validation
+        if (!formData.username || !formData.email || !formData.password) {
+            setError("All fields are required.");
+            return;
+        }
 
-  return (
-    <Container component="main" maxWidth="xs">
-      <Paper elevation={3} sx={{ marginTop: 8, padding: 3 }}>
-        <Typography component="h1" variant="h5" align="center">
-          Sign Up
-        </Typography>
+        const response = await signup(formData.username, formData.email, formData.password);
 
-        {message && (
-          <Box sx={{ mt: 2, p: 1, bgcolor: message.includes("✅") ? "#e8f5e9" : "#ffebee", borderRadius: 1 }}>
-            <Typography>{message}</Typography>
-          </Box>
-        )}
+        if (response.success) {
+            alert("✅ Signup successful! Redirecting to login...");
+            navigate("/login"); // Redirect to login page
+        } else {
+            setError(response.message);
+        }
+    };
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="username"
-            label="Username"
-            name="username"
-            autoComplete="username"
-            autoFocus
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Sign Up"}
-          </Button>
-        </Box>
-      </Paper>
-    </Container>
-  );
+    return (
+        <Container maxWidth="sm">
+            <Box sx={{ mt: 8, textAlign: "center" }}>
+                <Typography variant="h4" gutterBottom>Signup</Typography>
+                {error && <Typography color="error">{error}</Typography>}
+                <form onSubmit={handleSubmit}>
+                    <TextField 
+                        fullWidth 
+                        margin="normal" 
+                        label="Username" 
+                        name="username" 
+                        value={formData.username} 
+                        onChange={handleChange} 
+                        required
+                    />
+                    <TextField 
+                        fullWidth 
+                        margin="normal" 
+                        label="Email" 
+                        name="email" 
+                        type="email"
+                        value={formData.email} 
+                        onChange={handleChange} 
+                        required
+                    />
+                    <TextField 
+                        fullWidth 
+                        margin="normal" 
+                        label="Password" 
+                        name="password" 
+                        type="password" 
+                        value={formData.password} 
+                        onChange={handleChange} 
+                        required
+                    />
+                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
+                        Sign Up
+                    </Button>
+                </form>
+                <Typography sx={{ mt: 2 }}>
+                    Already have an account? <Button onClick={() => navigate("/login")}>Login</Button>
+                </Typography>
+            </Box>
+        </Container>
+    );
 };
 
-export default SignUp;
+export default Signup;
