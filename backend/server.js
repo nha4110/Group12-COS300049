@@ -157,6 +157,56 @@ app.post("/logout", (req, res) => {
   res.json({ success: true, message: "Logged out successfully." });
 });
 
+
+// ✅ Get NFT Collections (Ensures Unique Categories)
+app.get("/collections", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT category, MIN(img) AS first_image
+      FROM assets
+      GROUP BY category;
+    `);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "No categories found." });
+    }
+
+    res.json({ success: true, collections: result.rows });
+  } catch (error) {
+    console.error("❌ Fetch Collections Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+
+
+app.get("/nfts/:category", async (req, res) => {
+  const { category } = req.params;
+
+  console.log("🟢 Fetching NFTs for category:", category);
+
+  try {
+      const result = await pool.query(
+          "SELECT assetID AS assetid, name, img, price FROM assets WHERE category = $1",
+          [category]
+      );
+
+      if (result.rows.length === 0) {
+          return res.status(404).json({ success: false, message: "No NFTs found." });
+      }
+
+      res.json({ success: true, nfts: result.rows });
+  } catch (error) {
+      console.error("❌ Fetch NFTs by Category Error:", error);
+      res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+
+
+
+
+
 // ✅ Start Server
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {

@@ -50,7 +50,7 @@ function App() {
                             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
                             {/* ✅ Market Route with Dynamic Collection Handling */}
-                            <Route path="/market/:collectionName" element={<Market />} />
+                            <Route path="/market/:category" element={<Market />} />
 
                             {/* ✅ Test Page */}
                             <Route path="/test" element={<Test />} />
