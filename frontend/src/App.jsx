@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { Suspense } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { isAuthenticated } from "./scripts/auth"; // ✅ Uses frontend authentication
 import { BalanceProvider } from "./component/AppBar";
@@ -20,14 +20,7 @@ const NotFound = React.lazy(() => import("./pages/NotFound"));
  * Ensures only authenticated users can access the route.
  */
 const ProtectedRoute = ({ children }) => {
-    const [auth, setAuth] = useState(null);
-
-    useEffect(() => {
-        setAuth(isAuthenticated()); // ✅ Check authentication status
-    }, []);
-
-    if (auth === null) return <div>Checking authentication...</div>; // Prevent flickering issues
-    return auth ? children : <Navigate to="/login" replace />;
+    return isAuthenticated() ? children : <Navigate to="/login" replace />;
 };
 
 /**
@@ -38,9 +31,9 @@ function App() {
         <AuthProvider> {/* ✅ Wrap everything in AuthProvider */}
             <BalanceProvider>
                 <Router>
-                    <SearchAppBar /> {/* Navigation Bar */}
-                    
-                    <Suspense fallback={<div>Loading content...</div>}> {/* Lazy Loading Fallback */}
+                    <SearchAppBar /> {/* ✅ Navigation Bar */}
+
+                    <Suspense fallback={<div style={{ textAlign: "center", marginTop: "50px" }}>Loading...</div>}> 
                         <Routes>
                             <Route path="/" element={<Home />} />
                             <Route path="/login" element={<Login />} />
@@ -60,7 +53,7 @@ function App() {
                         </Routes>
                     </Suspense>
 
-                    <Footer /> {/* Footer on all pages */}
+                    <Footer /> {/* ✅ Footer on all pages */}
                 </Router>
             </BalanceProvider>
         </AuthProvider>

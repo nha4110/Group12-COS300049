@@ -15,19 +15,33 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ Root Route (Fixes "Cannot GET /")
+// ✅ Authentication Middleware (Moved to the Top)
+const isAuthenticated = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+
+// ✅ Root Route
 app.get("/", (req, res) => {
   res.send("🚀 API is running!");
 });
 
-// ✅ Signup Route (Improved)
+// ✅ Signup Route (Fixed `accountID` reference)
 app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    // Check if user exists
     const existingUser = await pool.query(
-      "SELECT id FROM users WHERE username = $1 OR email = $2",
+      "SELECT accountID FROM users WHERE username = $1 OR email = $2",
       [username, email]
     );
     if (existingUser.rows.length > 0) {
@@ -48,37 +62,27 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-// ✅ Login Route (Improved)
+// ✅ Login Route (Fixed `accountID`)
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    console.log(`🔍 Checking user: ${username}`);
-
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
-
-    console.log(`📌 Query result: `, result.rows);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, message: "Invalid username or password." });
     }
 
     const user = result.rows[0];
-
-    // Check if password is hashed (prevents bcrypt error for old accounts)
-    const passwordMatch = user.password.startsWith("$2a$")
-      ? await bcrypt.compare(password, user.password)
-      : password === user.password; // Fallback for old plaintext passwords
-
-    console.log(`🔑 Password match: ${passwordMatch}`);
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({ success: false, message: "Invalid username or password." });
     }
 
-    // Generate JWT token
+    // ✅ Fix: Generate JWT with `accountID`
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.accountid, username: user.username },
       process.env.JWT_SECRET || "default_secret_key",
       { expiresIn: "1h" }
     );
@@ -90,27 +94,13 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// ✅ Authentication Middleware
-const isAuthenticated = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-
-  if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ success: false, message: "Invalid token" });
-  }
-};
-
-// ✅ Get Current User
+// ✅ Get Current User (Fixed `accountID`)
 app.get("/user", isAuthenticated, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [
-      req.user.userId
-    ]);
+    const result = await pool.query(
+      "SELECT accountID, username, email FROM users WHERE accountID = $1",
+      [req.user.userId]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -123,10 +113,10 @@ app.get("/user", isAuthenticated, async (req, res) => {
   }
 });
 
-// ✅ Get All Users (Admin Feature)
+// ✅ Get All Users (Fixed `accountID`)
 app.get("/users", async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, email FROM users");
+    const result = await pool.query("SELECT accountID, username, email FROM users");
     res.json({ success: true, users: result.rows });
   } catch (error) {
     console.error("❌ Get Users Error:", error);
@@ -134,12 +124,13 @@ app.get("/users", async (req, res) => {
   }
 });
 
-// ✅ Get Profile (Self Info)
+// ✅ Get Profile (Fixed `accountID`)
 app.get("/profile", isAuthenticated, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [
-      req.user.userId
-    ]);
+    const result = await pool.query(
+      "SELECT accountID, username, email FROM users WHERE accountID = $1",
+      [req.user.userId]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Profile not found" });
@@ -152,11 +143,10 @@ app.get("/profile", isAuthenticated, async (req, res) => {
   }
 });
 
-// ✅ Logout (Token-based Logout)
+// ✅ Logout Route
 app.post("/logout", (req, res) => {
   res.json({ success: true, message: "Logged out successfully." });
 });
-
 
 // ✅ Get NFT Collections (Ensures Unique Categories)
 app.get("/collections", async (req, res) => {
@@ -178,34 +168,26 @@ app.get("/collections", async (req, res) => {
   }
 });
 
-
-
+// ✅ Get NFTs by Category (No Changes Needed)
 app.get("/nfts/:category", async (req, res) => {
   const { category } = req.params;
 
-  console.log("🟢 Fetching NFTs for category:", category);
-
   try {
-      const result = await pool.query(
-          "SELECT assetID AS assetid, name, img, price FROM assets WHERE category = $1",
-          [category]
-      );
+    const result = await pool.query(
+      "SELECT assetID AS assetid, name, img, price FROM assets WHERE category = $1",
+      [category]
+    );
 
-      if (result.rows.length === 0) {
-          return res.status(404).json({ success: false, message: "No NFTs found." });
-      }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "No NFTs found." });
+    }
 
-      res.json({ success: true, nfts: result.rows });
+    res.json({ success: true, nfts: result.rows });
   } catch (error) {
-      console.error("❌ Fetch NFTs by Category Error:", error);
-      res.status(500).json({ success: false, message: "Database error." });
+    console.error("❌ Fetch NFTs by Category Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
   }
 });
-
-
-
-
-
 
 // ✅ Start Server
 const PORT = process.env.PORT || 8081;

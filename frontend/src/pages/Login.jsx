@@ -1,60 +1,71 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/authApi";
-import { useAuth } from "../scripts/AuthContext"; // ✅ Import useAuth
+import { Container, TextField, Button, Typography, Box } from "@mui/material";
 
 const Login = () => {
-  const [form, setForm] = useState({ username: "", password: "" });
-  const [message, setMessage] = useState("");
-  const navigate = useNavigate();
-  const { dispatch } = useAuth(); // ✅ Access Auth Context
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({ username: "", password: "" });
+    const [error, setError] = useState("");
 
-  // Handle Input Changes
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-  // Handle Form Submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(""); // Clear previous errors
 
-    const response = await login(form.username, form.password); // Call login API
+        if (!formData.username || !formData.password) {
+            setError("Username and password are required.");
+            return;
+        }
 
-    if (response.success) {
-      setMessage("✅ Login successful!");
-      dispatch({ type: "LOGIN", payload: response.user }); // ✅ Update auth state
-      navigate("/profile"); // Redirect on success
-    } else {
-      setMessage(`❌ ${response.message}`); // Show error message
-    }
-  };
+        const response = await login(formData.username, formData.password);
 
-  return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={form.username}
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
-        <button type="button" onClick={() => navigate("/signup")}>Go to Signup</button> {/* New button */}
-        <button type="submit">Login</button>
-      </form>
-      <p>{message}</p>
-    </div>
-  );
+        if (response.success) {
+            alert("✅ Login successful! Redirecting...");
+            navigate("/"); // Redirect to home page
+        } else {
+            setError(response.message);
+        }
+    };
+
+    return (
+        <Container maxWidth="sm">
+            <Box sx={{ mt: 8, textAlign: "center" }}>
+                <Typography variant="h4" gutterBottom>Login</Typography>
+                {error && <Typography color="error">{error}</Typography>}
+                <form onSubmit={handleSubmit}>
+                    <TextField 
+                        fullWidth 
+                        margin="normal" 
+                        label="Username" 
+                        name="username" 
+                        value={formData.username} 
+                        onChange={handleChange} 
+                        required
+                    />
+                    <TextField 
+                        fullWidth 
+                        margin="normal" 
+                        label="Password" 
+                        name="password" 
+                        type="password" 
+                        value={formData.password} 
+                        onChange={handleChange} 
+                        required
+                    />
+                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
+                        Login
+                    </Button>
+                </form>
+                <Typography sx={{ mt: 2 }}>
+                    Don't have an account? <Button onClick={() => navigate("/signup")}>Sign Up</Button>
+                </Typography>
+            </Box>
+        </Container>
+    );
 };
 
 export default Login;
