@@ -1,4 +1,7 @@
 const API_URL = "http://localhost:5000/auth"; // Backend API
+import { jwtDecode } from "jwt-decode";
+
+
 
 // ✅ Signup Function
 export const signup = async (username, email, password) => {
@@ -32,13 +35,14 @@ export const login = async (username, password) => {
   return data;
 };
 
-// ✅ isAuthenticated Function (Now Checks Token Expiration)
+
+
 export const isAuthenticated = () => {
   const token = localStorage.getItem("token");
   if (!token) return false;
 
   try {
-    const decoded = JSON.parse(atob(token.split(".")[1])); // Decode JWT payload
+    const decoded = jwtDecode(token); // ✅ Safely decode token
     if (decoded.exp * 1000 < Date.now()) {
       logout(); // Token expired, clear storage
       return false;

@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/authApi";
+import { useAuth } from "../scripts/AuthContext";
 import { Container, TextField, Button, Typography, Box } from "@mui/material";
 
 const Login = () => {
     const navigate = useNavigate();
+    const { dispatch } = useAuth();
     const [formData, setFormData] = useState({ username: "", password: "" });
     const [error, setError] = useState("");
 
@@ -14,7 +16,7 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(""); // Clear previous errors
+        setError("");
 
         if (!formData.username || !formData.password) {
             setError("Username and password are required.");
@@ -24,8 +26,8 @@ const Login = () => {
         const response = await login(formData.username, formData.password);
 
         if (response.success) {
-            alert("✅ Login successful! Redirecting...");
-            navigate("/"); // Redirect to home page
+            dispatch({ type: "LOGIN", payload: response.user });
+            navigate("/profile");
         } else {
             setError(response.message);
         }
@@ -37,23 +39,23 @@ const Login = () => {
                 <Typography variant="h4" gutterBottom>Login</Typography>
                 {error && <Typography color="error">{error}</Typography>}
                 <form onSubmit={handleSubmit}>
-                    <TextField 
-                        fullWidth 
-                        margin="normal" 
-                        label="Username" 
-                        name="username" 
-                        value={formData.username} 
-                        onChange={handleChange} 
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Username"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleChange}
                         required
                     />
-                    <TextField 
-                        fullWidth 
-                        margin="normal" 
-                        label="Password" 
-                        name="password" 
-                        type="password" 
-                        value={formData.password} 
-                        onChange={handleChange} 
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Password"
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleChange}
                         required
                     />
                     <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>

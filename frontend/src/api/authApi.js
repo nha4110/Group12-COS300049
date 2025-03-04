@@ -2,10 +2,15 @@ import axios from "axios";
 
 const API_URL = "http://localhost:8081"; // Ensure this is correct
 
-// ✅ Signup Function
+// ✅ Signup Function - Now Returns Wallet Address
 export const signup = async (username, email, password) => {
   try {
     const response = await axios.post(`${API_URL}/signup`, { username, email, password });
+
+    if (response.data.success) {
+      localStorage.setItem("wallet", response.data.wallet_address); // ✅ Store wallet address
+    }
+
     return response.data;
   } catch (error) {
     console.error("Signup error:", error.response?.data || error.message);
@@ -13,14 +18,15 @@ export const signup = async (username, email, password) => {
   }
 };
 
-// ✅ Login Function (Updated)
+// ✅ Login Function - Stores Wallet Address
 export const login = async (username, password) => {
   try {
     const response = await axios.post(`${API_URL}/login`, { username, password });
 
     if (response.data.token) {
-      localStorage.setItem("jwtToken", response.data.token); // ✅ Store Token
-      localStorage.setItem("user", JSON.stringify(response.data.user)); // ✅ Store User Info
+      localStorage.setItem("jwtToken", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("wallet", response.data.user.wallet_address); // ✅ Store wallet
       return { success: true, token: response.data.token, user: response.data.user };
     }
 
@@ -31,24 +37,23 @@ export const login = async (username, password) => {
   }
 };
 
-// ✅ Get Current User (Requires Token)
-export const getCurrentUser = async () => {
+// ✅ Fetch Wallet Address
+export const getWalletAddress = async () => {
   const token = localStorage.getItem("jwtToken");
   if (!token) return { success: false, message: "No token found" };
 
   try {
-    const response = await axios.get(`${API_URL}/user`, {
+    const response = await axios.get(`${API_URL}/wallet`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    return { success: true, user: response.data };
+    return response.data;
   } catch (error) {
-    console.error("Get user error:", error.response?.data || error.message);
-    return { success: false, message: error.response?.data?.error || "Failed to get user" };
+    console.error("Wallet fetch error:", error.response?.data || error.message);
+    return { success: false, message: error.response?.data?.error || "Failed to get wallet" };
   }
 };
 
-// ✅ Logout Function (Clears Token & User Data)
 export const logout = () => {
-  localStorage.removeItem("jwtToken");
+  localStorage.removeItem("token");
   localStorage.removeItem("user");
 };

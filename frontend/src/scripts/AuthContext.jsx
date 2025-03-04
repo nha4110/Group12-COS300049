@@ -20,8 +20,7 @@ const authReducer = (state, action) => {
 // Create Context
 const AuthContext = createContext();
 
-// Auth Provider Component
-const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
     return (
@@ -31,9 +30,5 @@ const AuthProvider = ({ children }) => {
     );
 };
 
-// Custom Hook to use Auth Context
-const useAuth = () => {
-    return useContext(AuthContext);
-};
-
-export { AuthProvider, useAuth };
+// ✅ Custom Hook to use AuthContext
+export const useAuth = () => useContext(AuthContext);
