@@ -24,5 +24,8 @@
     "path": "^0.12.7",
     "pg": "^8.13.3"
   },
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "hardhat": "^2.22.19"
+  }
 }
