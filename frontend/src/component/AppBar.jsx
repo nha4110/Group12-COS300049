@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from "react";
 import { AppBar, Box, Toolbar, IconButton, Typography, Avatar, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
-import { getWallet, createWallet, getBalance } from "../api/wallet";
+import { getWallet, createWallet } from "../api/wallet";
 import { useAuth } from "../scripts/AuthContext";
 import { ethers } from "ethers";
 
@@ -19,16 +19,25 @@ export const WalletProvider = ({ children }) => {
         if (!state.user) return;
 
         const fetchWallet = async () => {
+            console.log("🔍 Checking user wallet in WalletProvider:", state.user);
+
+            if (!state.user.walletAddress) {
+                console.error("🚨 No wallet address found for user.");
+                return;
+            }
+
             try {
-                const res = await getWallet(state.user.userId);
-                if (res.success && res.walletAddress) {
+                const res = await getWallet(state.user.walletAddress);
+                console.log("✅ Wallet API Response:", res);
+
+                if (res.success) {
                     setWallet(res.walletAddress);
                 } else {
                     const newWallet = await createWallet();
                     if (newWallet.success) setWallet(newWallet.walletAddress);
                 }
             } catch (error) {
-                console.error("Error fetching wallet:", error);
+                console.error("❌ Error fetching wallet:", error);
             }
         };
 
@@ -38,12 +47,13 @@ export const WalletProvider = ({ children }) => {
     useEffect(() => {
         const fetchBalance = async () => {
             if (!wallet) return;
+
             try {
                 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:7545");
                 const balanceWei = await provider.getBalance(wallet);
                 setBalance(`${ethers.formatEther(balanceWei)} ETH`);
             } catch (error) {
-                console.error("Error fetching balance:", error);
+                console.error("❌ Error fetching balance:", error);
             }
         };
 
@@ -57,7 +67,7 @@ export const WalletProvider = ({ children }) => {
     );
 };
 
-// ✅ Custom hook to use wallet context
+// ✅ Custom Hook to use Wallet Context
 export const useWallet = () => useContext(WalletContext);
 
 // ✅ Updated AppBar Component
@@ -70,6 +80,9 @@ export default function AppBarComponent() {
     // ✅ Logout Function
     const handleLogout = () => {
         dispatch({ type: "LOGOUT" });
+        localStorage.removeItem("jwtToken");  // ✅ Clear token
+        localStorage.removeItem("user");      // ✅ Clear user data
+        localStorage.removeItem("wallet");    // ✅ Clear wallet data
         navigate("/login");
     };
 
@@ -88,7 +101,7 @@ export default function AppBarComponent() {
                     </Typography>
 
                     {/* Wallet Address & Balance Display */}
-                    {user && (
+                    {user && wallet && (
                         <Box sx={{ display: "flex", alignItems: "center", mr: 2 }}>
                             <Typography
                                 variant="body1"
@@ -105,7 +118,7 @@ export default function AppBarComponent() {
                                 }}
                                 title={wallet} // Show full wallet on hover
                             >
-                                {wallet ? wallet : "No Wallet"}
+                                {wallet}
                             </Typography>
                             <Typography variant="body1" sx={{ color: "white", fontWeight: "bold" }}>
                                 {balance}

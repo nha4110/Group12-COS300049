@@ -24,10 +24,16 @@ export const login = async (username, password) => {
     const response = await axios.post(`${API_URL}/login`, { username, password });
 
     if (response.data.token) {
+      const userData = {
+        ...response.data.user,
+        walletAddress: response.data.user.wallet_address // ✅ Ensure wallet is stored
+      };
+
       localStorage.setItem("jwtToken", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("wallet", response.data.user.wallet_address); // ✅ Store wallet
-      return { success: true, token: response.data.token, user: response.data.user };
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("wallet", userData.walletAddress);
+
+      return { success: true, token: response.data.token, user: userData };
     }
 
     return { success: false, message: "Invalid login response" };
@@ -36,6 +42,7 @@ export const login = async (username, password) => {
     return { success: false, message: error.response?.data?.error || "Login failed" };
   }
 };
+
 
 // ✅ Fetch Wallet Address
 export const getWalletAddress = async () => {

@@ -9,13 +9,20 @@ const initialState = {
 const authReducer = (state, action) => {
     switch (action.type) {
         case "LOGIN":
-            return { ...state, user: action.payload };
+            return { 
+                ...state, 
+                user: { 
+                    ...action.payload, 
+                    walletAddress: action.payload.wallet_address // ✅ Ensure wallet is stored
+                } 
+            };
         case "LOGOUT":
             return { ...state, user: null };
         default:
             return state;
     }
 };
+
 
 // Create Context
 const AuthContext = createContext();

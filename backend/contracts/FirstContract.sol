@@ -2,5 +2,6 @@
 pragma solidity ^0.8.16;
 
 contract FirstContract {  // ✅ The contract name MUST match exactly in `2_deploy_contracts.js`
-    string public message = "Hello, World!";
+    uint public number = 3400;
+    int public num = -133;
 }

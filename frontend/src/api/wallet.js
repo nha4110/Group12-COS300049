@@ -3,15 +3,16 @@ import axios from "axios";
 const API_URL = "http://localhost:8081/wallet"; // Adjust if your backend port is different
 
 // ✅ Fetch Wallet Address
-export const getWallet = async (userId) => {
+export const getWallet = async (walletAddress) => {
     try {
-        const res = await axios.get(`${API_URL}/${userId}`);
+        const res = await axios.get(`${API_URL}/${walletAddress}`);
         return res.data;
     } catch (error) {
         console.error("Error fetching wallet:", error);
         return { success: false };
     }
 };
+
 
 // ✅ Create New Wallet
 export const createWallet = async () => {

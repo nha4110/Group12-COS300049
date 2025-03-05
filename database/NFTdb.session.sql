@@ -11,9 +11,11 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     wallet_address VARCHAR(255) UNIQUE,
-    private_key TEXT, 
     PRIMARY KEY (accountID)
 );
+-- Reset Admin wallet but keep its ID
+UPDATE users SET wallet_address = NULL WHERE username = 'Admin';
+
 -- Create assets table with category column
 CREATE TABLE assets (
     assetID SERIAL PRIMARY KEY,
