@@ -16,14 +16,12 @@ const BalanceContext = createContext();
 export const BalanceProvider = ({ children }) => {
     const [balance, setBalance] = useState(() => {
         return parseFloat(localStorage.getItem("balance")) || 0;
-    }); 
+    });
 
-    // Update localStorage whenever balance changes
     useEffect(() => {
         localStorage.setItem("balance", balance.toString());
     }, [balance]);
 
-    // Function to update balance with a minimum value of 0 to prevent negative values
     const updateBalance = (newBalance) => {
         setBalance(Math.max(0, newBalance)); // Ensure balance doesn't go below zero
     };
@@ -45,19 +43,19 @@ export default function AppBarComponent() {
 
     return (
         <Box sx={{ flexGrow: 1 }}>
-            <AppBar position="static">
+            <AppBar position="static" sx={{ background: "#4A148C" }}> {/* Changed to Purple */}
                 <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-                    {/* Home Button - Navigates to the home page */}
+                    {/* Home Button */}
                     <IconButton size="large" edge="start" color="inherit" aria-label="home" onClick={() => navigate("/")}>
                         <HomeIcon />
                     </IconButton>
 
-                    {/* App Title - Always Visible */}
+                    {/* App Title */}
                     <Typography variant="h6" sx={{ flexGrow: 1, textAlign: "left" }}>
                         NFT Marketplace
                     </Typography>
 
-                    {/* Balance Input Field - Allows users to modify their ETH balance */}
+                    {/* Balance Input */}
                     <Box sx={{ display: "flex", alignItems: "center" }}>
                         <TextField
                             variant="standard"
@@ -65,21 +63,21 @@ export default function AppBarComponent() {
                             value={balance}
                             onChange={(e) => {
                                 const newBalance = Number(e.target.value);
-                                setBalance(newBalance >= 0 ? newBalance : 0); // Prevent negative values
+                                setBalance(newBalance >= 0 ? newBalance : 0);
                             }}
                             inputProps={{
-                                min: 0, // Ensures the input does not go below zero
+                                min: 0,
                                 style: { color: "white", textAlign: "right", width: "100%" },
                             }}
                             sx={{
-                                width: { xs: "60px", sm: "80px" }, // Adjusts width based on screen size
+                                width: { xs: "60px", sm: "80px" },
                                 mr: 1,
                             }}
                         />
                         <Typography variant="body1" sx={{ color: "white" }}>ETH</Typography>
                     </Box>
 
-                    {/* Profile Icon - Navigates to the user profile page */}
+                    {/* Profile Icon */}
                     <IconButton onClick={() => navigate("/profile")} sx={{ ml: { xs: 1, sm: 2 } }}>
                         <Avatar />
                     </IconButton>
