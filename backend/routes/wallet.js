@@ -1,10 +1,17 @@
+// wallet.js
 const express = require("express");
 const { ethers } = require("ethers");
-const pool = require("../db"); // PostgreSQL connection
-require("dotenv").config();
+const { Pool } = require("pg");
+require("dotenv").config(); // Load environment variables from .env file
 
 const router = express.Router();
-const provider = new ethers.JsonRpcProvider("http://127.0.0.1:7545"); // Ganache RPC
+const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545"); // Ganache RPC
+
+// ✅ PostgreSQL Connection
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL, // Get connection string from .env file
+    ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }, // Handle SSL based on URL
+});
 
 // ✅ Create Wallet for a New User
 router.post("/create", async (req, res) => {

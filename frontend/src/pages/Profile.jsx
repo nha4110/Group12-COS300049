@@ -7,30 +7,31 @@ const Profile = () => {
     const { state, dispatch } = useAuth();
     const navigate = useNavigate();
 
-    if (!state.user) {
+    const user = state.user;
+    const accountId = user?.accountid;
+    const walletAddress = user?.wallet_address; // ✅ No JSON parsing, just display it
+
+    if (!user) {
         return <Typography variant="h6" color="error">Unauthorized Access</Typography>;
     }
-
-    // ✅ Logout Function
-    const handleLogout = () => {
-        dispatch({ type: "LOGOUT" });
-        navigate("/login"); // Redirect to login page
-    };
 
     return (
         <Container maxWidth="sm">
             <Paper elevation={3} sx={{ padding: 3, marginTop: 4, textAlign: "center" }}>
                 <Typography variant="h4" gutterBottom>Profile</Typography>
-                <Typography variant="h6">Username: {state.user.username}</Typography>
-                <Typography variant="h6">Email: {state.user.email}</Typography>
-                <Typography variant="h6">Wallet Address: {state.user.walletAddress}</Typography>
+                <Typography variant="h6">Account ID: {accountId}</Typography>
+                <Typography variant="h6">Username: {user.username}</Typography>
+                <Typography variant="h6">Email: {user.email}</Typography>
+                <Typography variant="h6">Wallet Address: {walletAddress || "Not available"}</Typography>
 
-                {/* ✅ Logout Button */}
                 <Button 
                     variant="contained" 
                     color="secondary" 
                     sx={{ marginTop: 3 }} 
-                    onClick={handleLogout}
+                    onClick={() => {
+                        dispatch({ type: "LOGOUT" });
+                        navigate("/login");
+                    }}
                 >
                     Logout
                 </Button>

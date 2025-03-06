@@ -1,98 +1,89 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
-import { AppBar, Box, Toolbar, IconButton, Typography, Avatar, Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import HomeIcon from "@mui/icons-material/Home";
-import { getWallet, createWallet } from "../api/wallet";
+import React, { useEffect, useState } from "react";
+import { AppBar, Toolbar, Typography, Avatar, Menu, MenuItem, IconButton } from "@mui/material";
 import { useAuth } from "../scripts/AuthContext";
-import { ethers } from "ethers";
+import { getWalletBalance } from "../api/wallet"; // ✅ Correct API import
+import { useLocation, useNavigate } from "react-router-dom"; // ✅ Detect route & navigate
 
-// ✅ Create Wallet Context
-const WalletContext = createContext();
+const SearchAppBar = () => {
+    const { state, logout } = useAuth();
+    const [balance, setBalance] = useState("0.0000");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const walletAddress = state?.user?.wallet_address;
 
-// Balance Provider to wrap the app and manage global balance state
-export const BalanceProvider = ({ children }) => {
-    const [balance, setBalance] = useState(() => {
-        return parseFloat(localStorage.getItem("balance")) || 0;
-    }); 
+    // ✅ State for dropdown menu
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
 
-    // Update localStorage whenever balance changes
-    useEffect(() => {
-        localStorage.setItem("balance", balance.toString());
-    }, [balance]);
-
-    // Function to update balance with a minimum value of 0 to prevent negative values
-    const updateBalance = (newBalance) => {
-        setBalance(Math.max(0, newBalance)); // Ensure balance doesn't go below zero
+    const handleMenuOpen = (event) => {
+        setAnchorEl(event.currentTarget);
     };
 
-    return (
-        <WalletContext.Provider value={{ wallet, balance, setWallet }}>
-            {children}
-        </WalletContext.Provider>
-    );
-};
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
 
-// ✅ Custom Hook to use Wallet Context
-export const useWallet = () => useContext(WalletContext);
+    // ✅ Fetch balance from Ganache
+    useEffect(() => {
+        const fetchBalance = async () => {
+            if (!walletAddress) return;
 
-// ✅ Updated AppBar Component
-export default function AppBarComponent() {
-    const navigate = useNavigate();
-    const { state, dispatch } = useAuth();
-    const { wallet, balance } = useWallet();
-    const user = state.user;
+            try {
+                const response = await getWalletBalance(walletAddress);
+                if (response.success) {
+                    setBalance(response.balance || "0.0000");
+                }
+            } catch (error) {
+                console.error("❌ Error fetching ETH balance:", error);
+            }
+        };
 
-    // ✅ Logout Function
+        fetchBalance();
+    }, [walletAddress]);
+
+    // ✅ Reset balance when user logs out or switches pages
+    useEffect(() => {
+        setBalance("0.0000");
+    }, [state.user, location.pathname]);
+
+    // ✅ Handle Logout
     const handleLogout = () => {
-        dispatch({ type: "LOGOUT" });
-        localStorage.removeItem("jwtToken");  // ✅ Clear token
-        localStorage.removeItem("user");      // ✅ Clear user data
-        localStorage.removeItem("wallet");    // ✅ Clear wallet data
+        logout();
+        handleMenuClose();
         navigate("/login");
     };
 
     return (
-        <Box sx={{ flexGrow: 1 }}>
-            <AppBar position="static" sx={{ background: "#4A148C" }}> {/* Changed to Purple */}
-                <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-                    {/* Home Button - Navigates to the home page */}
-                    <IconButton size="large" edge="start" color="inherit" aria-label="home" onClick={() => navigate("/")}>
-                        <HomeIcon />
-                    </IconButton>
+        <AppBar position="static" sx={{ backgroundColor: "#2c3e50", padding: "8px 16px" }}>
+            <Toolbar>
+                {/* NFT Marketplace Title */}
+                <Typography
+                    variant="h6"
+                    sx={{ flexGrow: 1, fontWeight: "bold", cursor: "pointer" }}
+                    onClick={() => navigate("/")}>
+                    NFT Marketplace
+                </Typography>
 
-                    {/* App Title */}
-                    <Typography variant="h6" sx={{ flexGrow: 1, textAlign: "left" }}>
-                        NFT Marketplace
-                    </Typography>
+                {/* Display ETH Balance */}
+                <Typography variant="body1" sx={{ marginRight: "20px" }}>
+                    <strong>ETH Balance:</strong> {balance} ETH
+                </Typography>
 
-                    {/* Balance Input Field - Allows users to modify their ETH balance */}
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <TextField
-                            variant="standard"
-                            type="number"
-                            value={balance}
-                            onChange={(e) => {
-                                const newBalance = Number(e.target.value);
-                                setBalance(newBalance >= 0 ? newBalance : 0); // Prevent negative values
-                            }}
-                            inputProps={{
-                                min: 0, // Ensures the input does not go below zero
-                                style: { color: "white", textAlign: "right", width: "100%" },
-                            }}
-                            sx={{
-                                width: { xs: "60px", sm: "80px" }, // Adjusts width based on screen size
-                                mr: 1,
-                            }}
-                        />
-                        <Typography variant="body1" sx={{ color: "white" }}>ETH</Typography>
-                    </Box>
+                {/* Avatar with Dropdown */}
+                <IconButton onClick={handleMenuOpen}>
+                    <Avatar sx={{ bgcolor: "#f1c40f", fontWeight: "bold" }}>
+                        {state?.user?.username ? state.user.username.charAt(0).toUpperCase() : "?"}
+                    </Avatar>
+                </IconButton>
 
-                    {/* Profile Icon - Navigates to the user profile page */}
-                    <IconButton onClick={() => navigate("/profile")} sx={{ ml: { xs: 1, sm: 2 } }}>
-                        <Avatar />
-                    </IconButton>
-                </Toolbar>
-            </AppBar>
-        </Box>
+                {/* Dropdown Menu */}
+                <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
+                    <MenuItem onClick={() => navigate("/profile")}>Profile</MenuItem>
+                    <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                </Menu>
+            </Toolbar>
+        </AppBar>
     );
-}
+};
+
+export default SearchAppBar;

@@ -1,37 +1,73 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8081/wallet"; // Adjust if your backend port is different
+const API_URL = "http://localhost:8081/wallet"; // Ensure your backend is running
 
-// ✅ Fetch Wallet Address
-export const getWallet = async (walletAddress) => {
+// ✅ Fetch user wallet address by accountId
+export const getWallet = async (accountId) => {
     try {
-        const res = await axios.get(`${API_URL}/${walletAddress}`);
-        return res.data;
+        if (!accountId) throw new Error("Account ID is required.");
+
+        const response = await axios.get(`${API_URL}/${accountId}`);
+        return response.data; // { success: true, walletAddress: "0x..." }
     } catch (error) {
-        console.error("Error fetching wallet:", error);
-        return { success: false };
+        console.error("❌ Error fetching wallet:", error.response?.data || error.message);
+        return { success: false, message: "Failed to fetch wallet." };
     }
 };
 
-
-// ✅ Create New Wallet
-export const createWallet = async () => {
+// ✅ Fix API Call (Remove extra `/wallet`)
+export async function getWalletBalance(walletAddress) {
+    console.log(`🔍 Fetching balance for: ${walletAddress}`);
     try {
-        const res = await axios.post(`${API_URL}/create`);
-        return res.data;
+        const response = await axios.get(`http://localhost:8081/wallet/balance/${walletAddress}`);
+        return response.data.balance;
     } catch (error) {
-        console.error("Error creating wallet:", error);
-        return { success: false };
+        console.error("❌ Error fetching wallet balance:", error);
+        return "0.0000"; // Default to 0 if error occurs
+    }
+}
+
+// ✅ Create Wallet for a User
+export const createWallet = async (userId) => {
+    try {
+        if (!userId) {
+            throw new Error("User ID is required.");
+        }
+
+        const res = await axios.post(`${API_URL}/create`, { userId });
+        return res.data; // { success: true, walletAddress: "0x..." }
+    } catch (error) {
+        console.error("❌ Error creating wallet:", error.response?.data || error.message);
+        return { success: false, message: "Failed to create wallet." };
     }
 };
 
-// ✅ Fetch ETH Balance
-export const getBalance = async (walletAddress) => {
+// ✅ Send ETH Transaction
+export const sendTransaction = async (fromWallet, toWallet, amount) => {
     try {
-        const res = await axios.get(`${API_URL}/balance/${walletAddress}`);
-        return res.data;
+        if (!fromWallet || !toWallet || !amount) {
+            throw new Error("From wallet, to wallet, and amount are required.");
+        }
+
+        const res = await axios.post(`${API_URL}/send`, { fromWallet, toWallet, amount });
+        return res.data; // { success: true, transactionHash: "0x..." }
     } catch (error) {
-        console.error("Error fetching balance:", error);
-        return { success: false };
+        console.error("❌ Error sending transaction:", error.response?.data || error.message);
+        return { success: false, message: "Transaction failed." };
+    }
+};
+
+// ✅ Get Transaction History
+export const getTransactionHistory = async (walletAddress) => {
+    try {
+        if (!walletAddress) {
+            throw new Error("Wallet address is required.");
+        }
+
+        const res = await axios.get(`${API_URL}/transactions/${walletAddress}`);
+        return res.data; // { success: true, transactions: [...] }
+    } catch (error) {
+        console.error("❌ Error fetching transactions:", error.response?.data || error.message);
+        return { success: false, transactions: [] };
     }
 };
