@@ -26,7 +26,10 @@ const Login = () => {
         const response = await login(formData.username, formData.password);
 
         if (response.success) {
+            // Dispatch the login action and save user data to localStorage
             dispatch({ type: "LOGIN", payload: response.user });
+            localStorage.setItem("user", JSON.stringify(response.user)); // Store user data in localStorage
+            localStorage.setItem("jwtToken", response.token); // Store token if needed
             navigate("/profile");
         } else {
             setError(response.message);

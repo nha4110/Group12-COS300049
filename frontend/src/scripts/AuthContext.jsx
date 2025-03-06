@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useContext, useEffect } from "react";
 
 const initialState = {
-    user: null,
+    user: JSON.parse(localStorage.getItem("user")) || null, // Load user from localStorage if available
 };
 
 const authReducer = (state, action) => {
@@ -28,6 +28,8 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         dispatch({ type: "LOGOUT" });
+        localStorage.removeItem("user"); // Remove user from localStorage on logout
+        localStorage.removeItem("jwtToken"); // Optionally remove the token
     };
 
     useEffect(() => {
@@ -36,7 +38,7 @@ export const AuthProvider = ({ children }) => {
         if (userData) {
             dispatch({ type: "LOGIN", payload: userData });
         }
-    }, []);
+    }, []); // Runs only once on initial mount
 
     return (
         <AuthContext.Provider value={{ state, dispatch, logout }}>
