@@ -10474,12 +10474,12 @@
     "1337": {
       "events": {},
       "links": {},
-      "address": "0x8F20e398407Ff2D4de7cE2030F7F75De0472557a",
-      "transactionHash": "0x5d1db2b88490e6d1f9b52a96f571c802f9afe71fd164746d6653a3d884ac048b"
+      "address": "0xb8A7eAC0842976259b3A4799A208B0CC25c9f67B",
+      "transactionHash": "0xf95e3ee93615062b853f8e7e8931beeee0f4aa1d732ce270e5f764f879619f26"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2025-03-06T00:50:54.328Z",
+  "updatedAt": "2025-03-06T09:31:49.967Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

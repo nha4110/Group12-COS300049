@@ -20,10 +20,13 @@ export async function getWalletBalance(walletAddress) {
     console.log(`🔍 Fetching balance for: ${walletAddress}`);
     try {
         const response = await axios.get(`http://localhost:8081/wallet/balance/${walletAddress}`);
-        return response.data.balance;
+        if (response.data && response.data.balance) {
+            return { success: true, balance: response.data.balance };
+        }
+        return { success: false, message: "Balance not found." };
     } catch (error) {
         console.error("❌ Error fetching wallet balance:", error);
-        return "0.0000"; // Default to 0 if error occurs
+        return { success: false, message: "Failed to fetch balance." };
     }
 }
 
