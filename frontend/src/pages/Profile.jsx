@@ -30,6 +30,8 @@ const Profile = () => {
                     sx={{ marginTop: 3 }} 
                     onClick={() => {
                         dispatch({ type: "LOGOUT" });
+                        localStorage.removeItem("user"); // Clear user data from localStorage
+                        localStorage.removeItem("jwtToken"); // Clear token if necessary
                         navigate("/login");
                     }}
                 >

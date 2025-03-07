@@ -112,83 +112,39 @@ async function setupAdminWallet() {
   }
 }
 
-// ✅ Run Admin Wallet Setup on Server Start
-setupAdminWallet();
+// ✅ Assign a Free Wallet to New User
+async function assignFreeWallet() {
+  const accounts = await provider.listAccounts();
+  let assignedWallet = null;
 
-// ✅ Profile Route
-app.get("/profile", async (req, res) => {
-  try {
-    const { userId } = req.user;
-    const result = await pool.query(
-      "SELECT username, email, wallet_address FROM users WHERE accountid = $1",
-      [userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "User not found." });
+  // Iterate over accounts to find an available one (excluding the admin wallet)
+  for (const account of accounts.slice(1)) { // Skip admin account
+    const user = await pool.query("SELECT * FROM users WHERE wallet_address = $1", [account]);
+    if (user.rows.length === 0) {
+      assignedWallet = account;
+      break;
     }
-
-    const user = result.rows[0];
-
-    // ✅ Fetch ETH Balance from Ganache
-    let ethBalance = "0 ETH";
-    try {
-      const balance = await provider.getBalance(user.wallet_address);
-      ethBalance = `${ethers.formatEther(balance)} ETH`;
-    } catch (err) {
-      console.error("❌ Error fetching ETH balance:", err);
-    }
-
-    res.json({
-      success: true,
-      user: { username: user.username, email: user.email, wallet_address: user.wallet_address, eth_balance: ethBalance },
-    });
-  } catch (error) {
-    console.error("❌ Profile Fetch Error:", error);
-    res.status(500).json({ success: false, message: "Database error." });
   }
-});
 
-// ✅ Root Route
-app.get("/", (req, res) => {
-  res.send("🚀 API is running!");
-});
-
-// ✅ Balance Route
-app.get("/wallet/balance/:address", async (req, res) => {
-  const { address } = req.params;
-  console.log(`Fetching balance for address: ${address}`);
-  try {
-    if (!ethers.isAddress(address)) {
-      return res.status(400).json({ success: false, message: "Invalid Ethereum address." });
-    }
-
-    const balanceWei = await provider.getBalance(address);
-    console.log(`Balance in Wei: ${balanceWei.toString()}`);
-    const balanceETH = ethers.formatEther(balanceWei);
-    console.log(`Balance in ETH: ${balanceETH}`);
-    res.json({ success: true, balance: balanceETH });
-  } catch (error) {
-    console.error("Error fetching balance:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+  return assignedWallet;
+}
 
 // ✅ Signup Route (Assigns a Wallet)
 app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
+    // Check if the username or email already exists
     const existingUser = await pool.query("SELECT accountid FROM users WHERE username = $1 OR email = $2", [username, email]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Username or email already exists." });
     }
 
-    // ✅ Find an unused Ethereum Wallet from Ganache
+    // ✅ Get the available accounts from Ganache (skip the admin account)
     const accounts = await provider.listAccounts();
     let assignedWallet = null;
 
-    for (const account of accounts.slice(1)) { // Skip admin account
+    for (const account of accounts.slice(1)) { // Skip the admin account (index 0)
       const user = await pool.query("SELECT * FROM users WHERE wallet_address = $1", [account]);
       if (user.rows.length === 0) {
         assignedWallet = account;
@@ -205,7 +161,11 @@ app.post("/signup", async (req, res) => {
     // ✅ Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Save user & wallet to database
+    // ✅ Clear existing wallet_address if necessary before inserting new user with assigned wallet
+    // (This step ensures that if the user already exists but doesn't have a wallet address, it gets cleared before the update)
+    await pool.query("UPDATE users SET wallet_address = NULL WHERE username = $1", [username]);
+
+    // ✅ Save user & wallet address to database
     await pool.query(
       "INSERT INTO users (username, email, password, wallet_address) VALUES ($1, $2, $3, $4)",
       [username, email, hashedPassword, assignedWallet]
@@ -217,6 +177,10 @@ app.post("/signup", async (req, res) => {
     res.status(500).json({ success: false, message: "Database error." });
   }
 });
+
+
+// ✅ Run Admin Wallet Setup on Server Start
+setupAdminWallet();
 
 // ✅ Login Route
 app.post("/login", async (req, res) => {
