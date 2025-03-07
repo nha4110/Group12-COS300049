@@ -28,13 +28,18 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         dispatch({ type: "LOGOUT" });
+        localStorage.removeItem("user_wallet"); // Remove stored user data
     };
 
     useEffect(() => {
-        // Check if user data exists in localStorage and set it in the context state
-        const userData = JSON.parse(localStorage.getItem("user"));
-        if (userData) {
-            dispatch({ type: "LOGIN", payload: userData });
+        const walletAddress = localStorage.getItem("user_wallet");
+        const username = localStorage.getItem("username");
+
+        if (walletAddress && username) {
+            dispatch({
+                type: "LOGIN",
+                payload: { walletAddress, username },
+            });
         }
     }, []);
 
