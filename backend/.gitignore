@@ -1,3 +1,4 @@
 admin_wallet.json
 ganache-data/
 *.json
+node_modules/
