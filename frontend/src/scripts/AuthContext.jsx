@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useContext, useEffect } from "react";
 
 const initialState = {
-    user: JSON.parse(localStorage.getItem("user")) || null, // Load user from localStorage if available
+    user: null,
 };
 
 const authReducer = (state, action) => {
@@ -28,17 +28,20 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         dispatch({ type: "LOGOUT" });
-        localStorage.removeItem("user"); // Remove user from localStorage on logout
-        localStorage.removeItem("jwtToken"); // Optionally remove the token
+        localStorage.removeItem("user_wallet"); // Remove stored user data
     };
 
     useEffect(() => {
-        // Check if user data exists in localStorage and set it in the context state
-        const userData = JSON.parse(localStorage.getItem("user"));
-        if (userData) {
-            dispatch({ type: "LOGIN", payload: userData });
+        const walletAddress = localStorage.getItem("user_wallet");
+        const username = localStorage.getItem("username");
+
+        if (walletAddress && username) {
+            dispatch({
+                type: "LOGIN",
+                payload: { walletAddress, username },
+            });
         }
-    }, []); // Runs only once on initial mount
+    }, []);
 
     return (
         <AuthContext.Provider value={{ state, dispatch, logout }}>

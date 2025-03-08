@@ -11,6 +11,7 @@
     "init": "npm run clean && npm run start:ganache & sleep 5 && npm run deploy && npm run transfer"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^5.2.0",
     "@truffle/contract": "^4.6.31",
     "bcryptjs": "^3.0.2",
     "connect-pg-simple": "^10.0.0",
