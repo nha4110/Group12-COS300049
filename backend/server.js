@@ -73,20 +73,14 @@ async function setupAdminWallet() {
       const currentDbWallet = dbResult.rows[0].wallet_address;
 
       if (currentDbWallet !== newAdminWallet) {
-        // ✅ Save new wallet address in file
         saveAdminWallet(newAdminWallet);
 
-        // ✅ Update wallet address for accountid: 1
-        const updateResult = await pool.query(
+        await pool.query(
           "UPDATE users SET wallet_address = $1 WHERE accountid = 1",
           [newAdminWallet]
         );
 
-        if (updateResult.rowCount > 0) {
-          console.log(`✅ Admin wallet successfully updated in DB: ${newAdminWallet}`);
-        } else {
-          console.error("❌ [ERROR] Admin wallet update failed in DB.");
-        }
+        console.log(`✅ Admin wallet successfully updated in DB: ${newAdminWallet}`);
       } else {
         console.log("✅ Admin wallet is already correct in DB.");
       }
@@ -109,33 +103,38 @@ async function setupAdminWallet() {
 // ✅ Check and Update Wallets for Users
 async function checkAndUpdateWallets() {
   try {
+    // 🔍 Fix: Remove NULL or Invalid Wallets
+    await pool.query("UPDATE users SET wallet_address = NULL WHERE wallet_address IS NULL OR wallet_address = ''");
+
     // Fetch all users excluding the admin (accountid = 1)
     const users = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid > 1");
 
     // Fetch all wallet addresses from Ganache
     const ganacheWallets = await provider.listAccounts();
 
-    // Define the fixed wallet address to assign to non-admin users
-    const fixedWalletAddress = "0xD153ABF6DEDf7768e040c7a4e388e7E3aFc7C2d2";
+    for (const user of users.rows) {
+      let currentWallet = user.wallet_address;
 
-    for (let i = 0; i < users.rows.length; i++) {
-      const user = users.rows[i];
-      const currentWallet = user.wallet_address;
+      // If the wallet is NULL, empty, or not a valid Ethereum address, assign a new one
+      if (!currentWallet || !ethers.isAddress(currentWallet) || !ganacheWallets.includes(currentWallet)) {
+        console.log(`⚠️ Invalid or missing wallet for user ${user.accountid}, assigning a new wallet...`);
 
-      // Check if the current wallet is in Ganache
-      if (!ganacheWallets.includes(currentWallet)) {
-        console.log(`Wallet address ${currentWallet} for user ${user.accountid} no longer exists in Ganache. Updating...`);
+        let newWallet;
+        do {
+          newWallet = ethers.Wallet.createRandom().address; // Generate a new random wallet address
+        } while (ganacheWallets.includes(newWallet)); // Ensure uniqueness
 
-        // If the wallet doesn't exist in Ganache, assign the fixed wallet address
-        console.log(`Assigning new wallet ${fixedWalletAddress} to user ${user.accountid}`);
-
-        // Clear the old wallet address and update with the fixed wallet address
-        await pool.query(
-          "UPDATE users SET wallet_address = $1 WHERE accountid = $2",
-          [fixedWalletAddress, user.accountid]
-        );
+        try {
+          await pool.query(
+            "UPDATE users SET wallet_address = $1 WHERE accountid = $2",
+            [newWallet, user.accountid]
+          );
+          console.log(`✅ New wallet assigned to user ${user.accountid}: ${newWallet}`);
+        } catch (dbError) {
+          console.error("❌ Error updating wallet for user:", user.accountid, dbError);
+        }
       } else {
-        console.log(`Wallet address for user ${user.accountid} is valid: ${currentWallet}`);
+        console.log(`✅ Wallet address for user ${user.accountid} is valid: ${currentWallet}`);
       }
     }
   } catch (error) {
@@ -143,16 +142,12 @@ async function checkAndUpdateWallets() {
   }
 }
 
-// ✅ Call this function on server startup
-checkAndUpdateWallets();
-
-// ✅ Run Setup for Admin Wallet and Check Wallets for Users
+// ✅ Initialize Everything on Startup
 async function initialize() {
   await setupAdminWallet();
   await checkAndUpdateWallets();
 }
 
-// ✅ Run Initialization on Server Start
 initialize();
 
 // ✅ Login Route
