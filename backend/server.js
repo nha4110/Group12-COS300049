@@ -37,54 +37,88 @@ function loadAdminWallet() {
   return fs.existsSync(ADMIN_WALLET_FILE) ? fs.readFileSync(ADMIN_WALLET_FILE, "utf8").trim() : null;
 }
 
+// ✅ Helper Function: Extract Pure Wallet Address
+function extractAddress(wallet) {
+  if (typeof wallet === "string") {
+    return wallet;
+  }
+  if (wallet && wallet.address) {
+    return wallet.address;
+  }
+  return null;
+}
+
 // ✅ Setup Admin Wallet
 async function setupAdminWallet() {
+  const storedWallet = loadAdminWallet();
   const accounts = await provider.listAccounts();
+
   if (accounts.length < 1) {
     console.error("❌ No accounts found in Ganache!");
     return;
   }
 
-  const newAdminWallet = accounts[0]; // First account is Admin
+  const newAdminWallet = extractAddress(accounts[0]);
+
   if (!ethers.isAddress(newAdminWallet)) {
-    console.error("❌ Invalid Admin wallet address:", newAdminWallet);
+    console.error("❌ Invalid wallet address from Ganache:", newAdminWallet);
     return;
   }
 
-  // ✅ Ensure Admin account exists in DB
-  await pool.query(
-    `INSERT INTO users (accountid, username, email, password, wallet_address, created)
-     VALUES ($1, $2, $3, $4, $5, NOW())
-     ON CONFLICT (accountid) DO UPDATE SET wallet_address = EXCLUDED.wallet_address`,
-    [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
-  );
+  const dbResult = await pool.query("SELECT wallet_address FROM users WHERE accountid = 1");
+  let currentDbWallet = dbResult.rows.length > 0 ? extractAddress(dbResult.rows[0].wallet_address) : null;
 
-  saveAdminWallet(newAdminWallet);
-  console.log(`✅ Admin wallet set to: ${newAdminWallet}`);
+  if (!ethers.isAddress(currentDbWallet)) {
+    console.warn(`⚠️ Fixing corrupted Admin wallet in DB: ${currentDbWallet}`);
+    currentDbWallet = null;
+  }
+
+  if (currentDbWallet !== newAdminWallet) {
+    console.log(`🔄 Updating Admin Wallet to: ${newAdminWallet}`);
+
+    saveAdminWallet(newAdminWallet);
+
+    await pool.query(
+      "INSERT INTO users (accountid, username, email, password, wallet_address, created) VALUES ($1, $2, $3, $4, $5, NOW()) " +
+      "ON CONFLICT (accountid) DO UPDATE SET wallet_address = EXCLUDED.wallet_address",
+      [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
+    );
+
+    console.log(`✅ Admin wallet updated in DB: ${newAdminWallet}`);
+  } else {
+    console.log("✅ Admin wallet is already correct in DB.");
+  }
 }
 
-// ✅ Check and Fix Wallets for All Users
+// ✅ Check and Update Wallets for Users
 async function checkAndUpdateWallets() {
   const accounts = await provider.listAccounts();
-  const result = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid > 1 ORDER BY accountid ASC");
+  const userAccounts = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid > 1 ORDER BY accountid ASC");
 
-  for (const user of result.rows) {
-    const { accountid, wallet_address } = user;
+  for (let i = 0; i < userAccounts.rows.length; i++) {
+    const user = userAccounts.rows[i];
+    const expectedWallet = extractAddress(accounts[i + 1]); // Skip the first account (Admin)
+    let currentWallet = extractAddress(user.wallet_address);
 
-    // ✅ Validate stored wallet
-    if (!wallet_address || !ethers.isAddress(wallet_address) || !accounts.includes(wallet_address)) {
-      console.log(`❌ Invalid wallet for user ${accountid}: ${wallet_address}. Assigning new one...`);
+    if (!expectedWallet) {
+      console.log(`⚠️ No more Ganache accounts available for accountid: ${user.accountid}`);
+      break;
+    }
 
-      const newWallet = accounts.find(acc => !result.rows.some(user => user.wallet_address === acc));
-      if (!newWallet) {
-        console.error("❌ No available wallets left in Ganache!");
-        continue;
-      }
+    if (!ethers.isAddress(currentWallet)) {
+      console.warn(`⚠️ Fixing corrupted wallet for user ${user.accountid}: ${currentWallet}`);
+      currentWallet = null;
+    }
 
-      await pool.query("UPDATE users SET wallet_address = $1 WHERE accountid = $2", [newWallet, accountid]);
-      console.log(`✅ New wallet assigned to user ${accountid}: ${newWallet}`);
+    if (currentWallet !== expectedWallet) {
+      console.log(`🔄 Updating wallet for accountid ${user.accountid}: ${currentWallet} -> ${expectedWallet}`);
+
+      await pool.query(
+        "UPDATE users SET wallet_address = $1 WHERE accountid = $2",
+        [expectedWallet, user.accountid]
+      );
     } else {
-      console.log(`✅ Wallet for user ${accountid} is correct.`);
+      console.log(`✅ Wallet for accountid ${user.accountid} is correct.`);
     }
   }
 }
@@ -92,16 +126,17 @@ async function checkAndUpdateWallets() {
 // ✅ Assign Next Available Wallet to New User
 async function assignNextAvailableWallet() {
   const accounts = await provider.listAccounts();
-  const usedWallets = (await pool.query("SELECT wallet_address FROM users")).rows.map(u => u.wallet_address);
+  const userAccounts = await pool.query("SELECT COUNT(accountid) FROM users");
 
-  // ✅ Find first unused wallet
-  const availableWallet = accounts.find(acc => !usedWallets.includes(acc));
-  if (!availableWallet) {
+  const nextAccountIndex = parseInt(userAccounts.rows[0].count); // Next available accountid in DB
+  const assignedWallet = extractAddress(accounts[nextAccountIndex]);
+
+  if (!assignedWallet) {
     console.error("❌ No available wallets left in Ganache!");
     return null;
   }
 
-  return availableWallet;
+  return assignedWallet;
 }
 
 // ✅ Signup Route (Assigns a Wallet)
@@ -109,13 +144,13 @@ app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    // ✅ Check if username/email exists
+    // Check if the username or email already exists
     const existingUser = await pool.query("SELECT accountid FROM users WHERE username = $1 OR email = $2", [username, email]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Username or email already exists." });
     }
 
-    // ✅ Assign a wallet
+    // ✅ Assign next available wallet
     const assignedWallet = await assignNextAvailableWallet();
     if (!assignedWallet) {
       return res.status(500).json({ success: false, message: "No available wallets left in Ganache." });
@@ -126,9 +161,9 @@ app.post("/signup", async (req, res) => {
     // ✅ Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Insert new user into database
+    // ✅ Save user & wallet address to database
     await pool.query(
-      "INSERT INTO users (username, email, password, wallet_address, created) VALUES ($1, $2, $3, $4, NOW())",
+      "INSERT INTO users (username, email, password, wallet_address) VALUES ($1, $2, $3, $4)",
       [username, email, hashedPassword, assignedWallet]
     );
 
@@ -139,7 +174,7 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-// ✅ Run Setup on Server Start
+// ✅ Run Admin Wallet Setup and Check Users on Server Start
 async function initialize() {
   await setupAdminWallet();
   await checkAndUpdateWallets();
