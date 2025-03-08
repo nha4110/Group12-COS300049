@@ -25,124 +25,121 @@ const pool = new Pool({
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
 
 // ✅ Admin Wallet File
-const ADMIN_WALLET_FILE = "admin_wallet.json";
+const ADMIN_WALLET_FILE = "admin_wallet.txt";
 
 // ✅ Save Admin Wallet to File
 function saveAdminWallet(walletAddress) {
-  fs.writeFileSync(ADMIN_WALLET_FILE, JSON.stringify({ wallet_address: walletAddress }, null, 2));
+  fs.writeFileSync(ADMIN_WALLET_FILE, walletAddress);
 }
 
 // ✅ Load Admin Wallet from File
 function loadAdminWallet() {
-  if (fs.existsSync(ADMIN_WALLET_FILE)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(ADMIN_WALLET_FILE, "utf8"));
-      return data.wallet_address;
-    } catch (error) {
-      console.error("❌ Error reading admin_wallet.json, resetting...");
-      saveAdminWallet(""); // Reset content instead of deleting
-    }
-  }
-  return null;
+  return fs.existsSync(ADMIN_WALLET_FILE) ? fs.readFileSync(ADMIN_WALLET_FILE, "utf8").trim() : null;
 }
 
 // ✅ Setup Admin Wallet
 async function setupAdminWallet() {
-  let storedWallet = loadAdminWallet();
-
-  try {
-    const accounts = await provider.listAccounts();
-    if (accounts.length < 1) {
-      console.error("❌ No accounts found in Ganache!");
-      return;
-    }
-
-    // ✅ Extract the correct wallet address format
-    const newAdminWallet = accounts[0]?.address ? accounts[0].address : accounts[0];
-
-    if (!ethers.isAddress(newAdminWallet)) {
-      console.error("❌ Invalid wallet address from Ganache:", newAdminWallet);
-      return;
-    }
-
-    // ✅ Check if Admin Exists in DB
-    const dbResult = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid = 1");
-    const adminExists = dbResult.rows.length > 0;
-
-    if (adminExists) {
-      const currentDbWallet = dbResult.rows[0].wallet_address;
-
-      if (currentDbWallet !== newAdminWallet) {
-        saveAdminWallet(newAdminWallet);
-
-        await pool.query(
-          "UPDATE users SET wallet_address = $1 WHERE accountid = 1",
-          [newAdminWallet]
-        );
-
-        console.log(`✅ Admin wallet successfully updated in DB: ${newAdminWallet}`);
-      } else {
-        console.log("✅ Admin wallet is already correct in DB.");
-      }
-    } else {
-      console.log("⚠️ Admin account not found! Creating a new admin account...");
-
-      await pool.query(
-        "INSERT INTO users (accountid, username, email, password, wallet_address, created) VALUES ($1, $2, $3, $4, $5, NOW())",
-        [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
-      );
-
-      saveAdminWallet(newAdminWallet);
-      console.log(`✅ Admin account created with wallet: ${newAdminWallet}`);
-    }
-  } catch (error) {
-    console.error("❌ Error setting up Admin Wallet:", error);
+  const accounts = await provider.listAccounts();
+  if (accounts.length < 1) {
+    console.error("❌ No accounts found in Ganache!");
+    return;
   }
+
+  const newAdminWallet = accounts[0]; // First account is Admin
+  if (!ethers.isAddress(newAdminWallet)) {
+    console.error("❌ Invalid Admin wallet address:", newAdminWallet);
+    return;
+  }
+
+  // ✅ Ensure Admin account exists in DB
+  await pool.query(
+    `INSERT INTO users (accountid, username, email, password, wallet_address, created)
+     VALUES ($1, $2, $3, $4, $5, NOW())
+     ON CONFLICT (accountid) DO UPDATE SET wallet_address = EXCLUDED.wallet_address`,
+    [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
+  );
+
+  saveAdminWallet(newAdminWallet);
+  console.log(`✅ Admin wallet set to: ${newAdminWallet}`);
 }
 
-// ✅ Check and Update Wallets for Users
+// ✅ Check and Fix Wallets for All Users
 async function checkAndUpdateWallets() {
-  try {
-    // 🔍 Fix: Remove NULL or Invalid Wallets
-    await pool.query("UPDATE users SET wallet_address = NULL WHERE wallet_address IS NULL OR wallet_address = ''");
+  const accounts = await provider.listAccounts();
+  const result = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid > 1 ORDER BY accountid ASC");
 
-    // Fetch all users excluding the admin (accountid = 1)
-    const users = await pool.query("SELECT accountid, wallet_address FROM users WHERE accountid > 1");
+  for (const user of result.rows) {
+    const { accountid, wallet_address } = user;
 
-    // Fetch all wallet addresses from Ganache
-    const ganacheWallets = await provider.listAccounts();
+    // ✅ Validate stored wallet
+    if (!wallet_address || !ethers.isAddress(wallet_address) || !accounts.includes(wallet_address)) {
+      console.log(`❌ Invalid wallet for user ${accountid}: ${wallet_address}. Assigning new one...`);
 
-    for (const user of users.rows) {
-      let currentWallet = user.wallet_address;
-
-      // If the wallet is NULL, empty, or not a valid Ethereum address, assign a new one
-      if (!currentWallet || !ethers.isAddress(currentWallet) || !ganacheWallets.includes(currentWallet)) {
-        console.log(`⚠️ Invalid or missing wallet for user ${user.accountid}, assigning a new wallet...`);
-
-        let newWallet;
-        do {
-          newWallet = ethers.Wallet.createRandom().address; // Generate a new random wallet address
-        } while (ganacheWallets.includes(newWallet)); // Ensure uniqueness
-
-        try {
-          await pool.query(
-            "UPDATE users SET wallet_address = $1 WHERE accountid = $2",
-            [newWallet, user.accountid]
-          );
-          console.log(`✅ New wallet assigned to user ${user.accountid}: ${newWallet}`);
-        } catch (dbError) {
-          console.error("❌ Error updating wallet for user:", user.accountid, dbError);
-        }
-      } else {
-        console.log(`✅ Wallet address for user ${user.accountid} is valid: ${currentWallet}`);
+      const newWallet = accounts.find(acc => !result.rows.some(user => user.wallet_address === acc));
+      if (!newWallet) {
+        console.error("❌ No available wallets left in Ganache!");
+        continue;
       }
+
+      await pool.query("UPDATE users SET wallet_address = $1 WHERE accountid = $2", [newWallet, accountid]);
+      console.log(`✅ New wallet assigned to user ${accountid}: ${newWallet}`);
+    } else {
+      console.log(`✅ Wallet for user ${accountid} is correct.`);
     }
-  } catch (error) {
-    console.error("❌ Error updating wallets:", error);
   }
 }
 
-// ✅ Initialize Everything on Startup
+// ✅ Assign Next Available Wallet to New User
+async function assignNextAvailableWallet() {
+  const accounts = await provider.listAccounts();
+  const usedWallets = (await pool.query("SELECT wallet_address FROM users")).rows.map(u => u.wallet_address);
+
+  // ✅ Find first unused wallet
+  const availableWallet = accounts.find(acc => !usedWallets.includes(acc));
+  if (!availableWallet) {
+    console.error("❌ No available wallets left in Ganache!");
+    return null;
+  }
+
+  return availableWallet;
+}
+
+// ✅ Signup Route (Assigns a Wallet)
+app.post("/signup", async (req, res) => {
+  const { username, email, password } = req.body;
+
+  try {
+    // ✅ Check if username/email exists
+    const existingUser = await pool.query("SELECT accountid FROM users WHERE username = $1 OR email = $2", [username, email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Username or email already exists." });
+    }
+
+    // ✅ Assign a wallet
+    const assignedWallet = await assignNextAvailableWallet();
+    if (!assignedWallet) {
+      return res.status(500).json({ success: false, message: "No available wallets left in Ganache." });
+    }
+
+    console.log(`🎉 New wallet assigned for ${username}: ${assignedWallet}`);
+
+    // ✅ Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Insert new user into database
+    await pool.query(
+      "INSERT INTO users (username, email, password, wallet_address, created) VALUES ($1, $2, $3, $4, NOW())",
+      [username, email, hashedPassword, assignedWallet]
+    );
+
+    res.json({ success: true, message: "User registered successfully.", walletAddress: assignedWallet });
+  } catch (error) {
+    console.error("❌ Signup Error:", error);
+    res.status(500).json({ success: false, message: "Database error." });
+  }
+});
+
+// ✅ Run Setup on Server Start
 async function initialize() {
   await setupAdminWallet();
   await checkAndUpdateWallets();
