@@ -140,7 +140,7 @@ const SearchAppBar = () => {
             <Drawer anchor="left" open={sidebarOpen} onClose={toggleSidebar}>
                 <List sx={{ width: 250, backgroundColor: "#34495e", height: "100%", paddingTop: "20px" }}>
                     <ListItem
-                        onClick={() => navigate("/home")}
+                        onClick={() => navigate("/")}
                         sx={{
                             color: "white", 
                             padding: "15px", 
