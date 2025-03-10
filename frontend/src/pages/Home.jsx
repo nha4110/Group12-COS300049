@@ -1,10 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Box, Grid, Card, CardContent, CardMedia, Typography, Button } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { styled } from "@mui/material/styles";
+import axios from "axios";
 
-// 🔹 Search & Filter Wrapper (Contains Both)
+// 🔹 IPFS Base URL
+const IPFS_BASE_URL = "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
+
+// 🔹 Styled Components
 const SearchBarWrapper = styled(Box)({
   display: "flex",
   alignItems: "center",
@@ -14,7 +18,6 @@ const SearchBarWrapper = styled(Box)({
   gap: "10px",
 });
 
-// 🔹 Search Box (White Bar)
 const SearchBox = styled("div")({
   display: "flex",
   alignItems: "center",
@@ -26,7 +29,6 @@ const SearchBox = styled("div")({
   boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.2)",
 });
 
-// 🔹 Input Styling
 const StyledInputBase = styled("input")({
   flex: 1,
   color: "black",
@@ -34,61 +36,44 @@ const StyledInputBase = styled("input")({
   fontSize: "16px",
 });
 
-// 🔹 Home Component
 const Home = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [collections, setCollections] = useState([
-    {
-      category: "Art 1",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/art1.jpg",
-    },
-    {
-      category: "Art 2",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/art2.jpg",
-    },
-    {
-      category: "Art 3",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/art3.jpg",
-    },
-    {
-      category: "Music 1",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/music1.jpg",
-    },
-    {
-      category: "Music 2",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/music2.jpg",
-    },
-    {
-      category: "Music 3",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/music3.jpg",
-    },
-    {
-      category: "Photo 1",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/photo1.jpg",
-    },
-    {
-      category: "Photo 2",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/photo2.jpg",
-    },
-    {
-      category: "Photo 3",
-      first_image: "https://ipfs.io/ipfs/bafybeiffrmvsogsu5povwilhez3uai2zzr5qnlfcnchv5xzbiri2c5bsim/photo3.jpg",
-    },
-  ]);
-
+  const [nfts, setNfts] = useState([]);
   const collectionsRef = useRef(null);
 
+  // 🔹 Fetch NFT Metadata from IPFS
+  useEffect(() => {
+    const fetchNFTs = async () => {
+      let loadedNFTs = [];
+      for (let i = 0; i < 60; i++) {
+        try {
+          const metadataUrl = `${IPFS_BASE_URL}/${i}.json`; // JSON metadata
+          const response = await axios.get(metadataUrl);
+          loadedNFTs.push({
+            id: i,
+            name: response.data.name || `NFT ${i}`,
+            image: `${IPFS_BASE_URL}/${i}.png`, // Assuming PNG format
+          });
+        } catch (error) {
+          console.error(`Error fetching NFT ${i}:`, error);
+        }
+      }
+      setNfts(loadedNFTs);
+    };
+
+    fetchNFTs();
+  }, []);
+
+  // 🔹 Scroll to NFTs
   const scrollToCollections = () => {
     if (collectionsRef.current) {
       collectionsRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
-  // 🔹 Filter NFTs based on Search
-  const filteredCollections = collections.filter((collection) => {
-    return collection.category.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // 🔹 Filter NFTs Based on Search
+  const filteredNFTs = nfts.filter((nft) => nft.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <Container sx={{ mt: 4 }}>
@@ -145,11 +130,11 @@ const Home = () => {
         </SearchBox>
       </SearchBarWrapper>
 
-      {/* 🔹 NFT Collections */}
+      {/* 🔹 NFT Collection Grid */}
       <div ref={collectionsRef}>
         <Grid container spacing={3} sx={{ mt: 2 }}>
-          {filteredCollections.map(({ category, first_image }) => (
-            <Grid item xs={12} sm={6} md={4} key={category}>
+          {filteredNFTs.map((nft) => (
+            <Grid item xs={12} sm={6} md={4} key={nft.id}>
               <Card
                 sx={{
                   background: "rgba(255, 255, 255, 0.1)",
@@ -162,9 +147,9 @@ const Home = () => {
                     border: "2px solid #8e24aa",
                   },
                 }}
-                onClick={() => navigate(`/market/${category}`)}
+                onClick={() => navigate(`/nft/${nft.id}`)}
               >
-                <CardMedia component="img" height="200" image={first_image} alt={category} />
+                <CardMedia component="img" height="200" image={nft.image} alt={nft.name} />
                 <CardContent>
                   <Typography
                     variant="h6"
@@ -174,7 +159,7 @@ const Home = () => {
                       textAlign: "center",
                     }}
                   >
-                    {category}
+                    {nft.name}
                   </Typography>
                 </CardContent>
               </Card>

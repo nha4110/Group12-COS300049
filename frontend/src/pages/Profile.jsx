@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Paper, Button, TextField } from "@mui/material";
+import { Container, Typography, Paper, Button, TextField, Tabs, Tab, Box } from "@mui/material";
+import { getWalletBalance } from "../api/wallet";
 import { useAuth } from "../scripts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getWalletBalance, sendTransaction } from "../api/wallet";
 import { ethers } from 'ethers';
+import Web3 from 'web3';
 
 const Profile = () => {
     const { state, dispatch } = useAuth();
@@ -11,19 +12,24 @@ const Profile = () => {
     const user = state.user;
     const accountId = user?.accountid;
 
-    // Wallet & balance state
     const [walletAddress, setWalletAddress] = useState("");
     const [balance, setBalance] = useState("Loading...");
-
-    // Transfer state
     const [recipientAddress, setRecipientAddress] = useState("");
     const [amount, setAmount] = useState("");
-    const [message, setMessage] = useState("");
+    const [gasPrice, setGasPrice] = useState("0.000000002");
+    const [balanceAfter, setBalanceAfter] = useState("");
+    const [currentTab, setCurrentTab] = useState("NFT Collection");
+
+    const [web3, setWeb3] = useState(null);
 
     useEffect(() => {
         if (user && user.walletAddress) {
-            setWalletAddress(user.walletAddress); // Set wallet address from user object
+            setWalletAddress(user.walletAddress);
             fetchBalance(user.walletAddress);
+        }
+
+        if (window.ethereum) {
+            setWeb3(new Web3(window.ethereum));
         }
     }, [user]);
 
@@ -31,7 +37,7 @@ const Profile = () => {
         try {
             const balanceData = await getWalletBalance(walletAddress);
             if (balanceData.success) {
-                setBalance(balanceData.balance); // Just set the balance without appending " ETH"
+                setBalance(balanceData.balance);
             } else {
                 console.error("Error fetching balance:", balanceData.message || "Unknown error");
                 setBalance("Failed to fetch balance");
@@ -42,38 +48,58 @@ const Profile = () => {
         }
     };
 
-    // ✅ Handle ETH transfer
-    const handleSendTransaction = async () => {
+    const sendDirectETH = async () => {
         try {
-            // Validate recipient address
-            if (!ethers.utils.isAddress(recipientAddress)) {
+            if (!ethers.isAddress(recipientAddress)) {
                 alert("Invalid recipient address.");
                 return;
             }
 
-            console.log("Sending transaction request:", {
-                sender: walletAddress,
-                recipient: recipientAddress,
-                amount: amount,
-            });
-
-            // Make API request to backend to handle transfer
-            const result = await sendTransaction({
-                sender: walletAddress,
-                recipient: recipientAddress,
-                amount: amount,
-            });
-            if (result.success) {
-                alert(`Transaction successful! TX Hash: ${result.txHash}`);
-                // Optionally update balance after successful transfer
-                fetchBalance(walletAddress);
-            } else {
-                alert("Transaction failed: " + (result.message || "Unknown error"));
+            if (!web3) {
+                alert("Please install MetaMask or another web3 provider.");
+                return;
             }
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const senderAddress = accounts[0];
+
+            const amountWei = web3.utils.toWei(amount, 'ether');
+
+            const transactionObject = {
+                from: senderAddress,
+                to: recipientAddress,
+                value: amountWei,
+                gas: 21000,
+            };
+
+            web3.eth.sendTransaction(transactionObject)
+                .on('transactionHash', (hash) => {
+                    alert(`Transaction successful! TX Hash: ${hash}`);
+                    fetchBalance(walletAddress);
+                })
+                .on('error', (error) => {
+                    alert(`Transaction failed: ${error.message}`);
+                });
         } catch (error) {
-            alert("Transaction failed: " + error.message);
+            alert(`Transaction failed: ${error.message}`);
         }
     };
+
+    const handleTabChange = (event, newTab) => {
+        setCurrentTab(newTab);
+    };
+
+    useEffect(() => {
+        if (balance && amount && gasPrice && !isNaN(balance) && !isNaN(amount) && !isNaN(gasPrice)) {
+            const balanceNum = parseFloat(balance);
+            const amountNum = parseFloat(amount);
+            const gasNum = parseFloat(gasPrice);
+            const newBalance = balanceNum - amountNum - gasNum;
+            setBalanceAfter(newBalance.toFixed(18));
+        } else {
+            setBalanceAfter("");
+        }
+    }, [balance, amount, gasPrice]);
 
     if (!user) {
         return <Typography variant="h6" color="error">Unauthorized Access</Typography>;
@@ -87,51 +113,42 @@ const Profile = () => {
                 <Typography variant="h6">Username: {user.username}</Typography>
                 <Typography variant="h6">Email: {user.email}</Typography>
                 <Typography variant="h6">Wallet Address: {walletAddress}</Typography>
-                <Typography variant="h6">Balance: {balance} ETH</Typography> {/* Append " ETH" here */}
-
-                {/* Transfer ETH Section */}
-                <TextField
-                    fullWidth
-                    label="Recipient Wallet Address"
-                    variant="outlined"
-                    margin="normal"
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                />
-                <TextField
-                    fullWidth
-                    label="Amount (ETH)"
-                    variant="outlined"
-                    margin="normal"
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                />
-                <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ marginTop: 2 }}
-                    onClick={handleSendTransaction}
-                >
-                    Send ETH
-                </Button>
-
-                {message && <Typography variant="body1" color="success" sx={{ marginTop: 2 }}>{message}</Typography>}
-
-                {/* Logout Button */}
-                <Button
-                    variant="contained"
-                    color="error"
-                    sx={{ marginTop: 3 }}
-                    onClick={() => {
-                        dispatch({ type: "LOGOUT" });
-                        localStorage.removeItem("user");
-                        navigate("/login");
-                    }}
-                >
-                    Logout
-                </Button>
+                <Typography variant="h6">Balance: {balance} ETH</Typography>
             </Paper>
+
+            <Box sx={{ width: '100%', marginTop: 4 }}>
+                <Tabs value={currentTab} onChange={handleTabChange} centered>
+                    <Tab label="NFT Collection" value="NFT Collection" />
+                    <Tab label="Balance Sender" value="Balance Sender" />
+                </Tabs>
+            </Box>
+
+            {currentTab === "NFT Collection" && (
+                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+                    <Typography variant="h6">NFT Collection</Typography>
+                </Paper>
+            )}
+
+            {currentTab === "Balance Sender" && (
+                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+                    <Typography variant="h6">Send ETH (Direct)</Typography>
+                    <TextField label="Your Wallet Address" fullWidth margin="normal" value={walletAddress} InputProps={{ readOnly: true }} />
+                    <TextField label="Recipient Address" fullWidth margin="normal" value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} />
+                    <TextField label="Amount (ETH)" fullWidth margin="normal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    {balanceAfter && (
+                        <Typography variant="body1" sx={{ marginTop: 2 }}>
+                            Balance After Send: {balanceAfter} ETH
+                        </Typography>
+                    )}
+                    <Button variant="contained" color="primary" onClick={sendDirectETH}>
+                        Send
+                    </Button>
+                </Paper>
+            )}
+
+            <Button variant="contained" color="error" sx={{ marginTop: 3 }} onClick={() => { dispatch({ type: "LOGOUT" }); localStorage.removeItem("user_wallet"); localStorage.removeItem("username"); navigate("/login"); }}>
+                Logout
+            </Button>
         </Container>
     );
 };

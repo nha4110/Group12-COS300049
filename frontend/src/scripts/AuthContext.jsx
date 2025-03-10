@@ -28,17 +28,20 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         dispatch({ type: "LOGOUT" });
-        localStorage.removeItem("user_wallet"); // Remove stored user data
+        // Remove all user data from localStorage on logout
+        localStorage.removeItem("user_wallet");
+        localStorage.removeItem("username");
     };
 
     useEffect(() => {
+        // Load user data from localStorage if available
         const walletAddress = localStorage.getItem("user_wallet");
         const username = localStorage.getItem("username");
 
         if (walletAddress && username) {
             dispatch({
                 type: "LOGIN",
-                payload: { walletAddress, username },
+                payload: { wallet_address: walletAddress, username: username },
             });
         }
     }, []);
