@@ -4,11 +4,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "start:ganache": "ganache-cli --db ./ganache-data --networkId 1337 --port 8545 --accounts 10 --defaultBalanceEther 100",
+    "start:ganache": "ganache-cli --mnemonic \"multiply minimum source dune ability candy tumble effort neither aim run regular\" --db ./ganache-data --networkId 1337 --port 8545 --accounts 10 --defaultBalanceEther 100",
     "deploy": "truffle migrate --reset",
-    "transfer": "node deploy_and_transfer.js",
     "clean": "rimraf ganache-data && mkdir ganache-data",
-    "init": "npm run clean && npm run start:ganache & sleep 5 && npm run deploy && npm run transfer"
+    "init": "npm run clean && npm run start:ganache & wait-on http://localhost:8545 && npm run deploy"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.2.0",
@@ -25,6 +24,7 @@
     "path": "^0.12.7",
     "pg": "^8.13.3",
     "truffle": "^5.9.2",
+    "wait-on": "^7.0.1",
     "web3": "^1.6.1"
   },
   "devDependencies": {

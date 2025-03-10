@@ -17,24 +17,27 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-
+    
         if (!formData.username || !formData.password) {
             setError("Username and password are required.");
             return;
         }
-
+    
         const response = await login(formData.username, formData.password);
-
+    
         if (response.success) {
-            // Dispatch the login action and save user data to localStorage
+            // Store user data, including wallet address
             dispatch({ type: "LOGIN", payload: response.user });
-            localStorage.setItem("user", JSON.stringify(response.user)); // Store user data in localStorage
-            localStorage.setItem("jwtToken", response.token); // Store token if needed
+            localStorage.setItem("user", JSON.stringify(response.user));
+            localStorage.setItem("jwtToken", response.token);
+            localStorage.setItem("wallet_address", response.user.wallet_address); // ✅ Store wallet address
             navigate("/profile");
         } else {
             setError(response.message);
         }
     };
+    
+    
 
     return (
         <Container maxWidth="sm">

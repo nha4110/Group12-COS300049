@@ -45,20 +45,30 @@ export const createWallet = async (userId) => {
     }
 };
 
-// ✅ Send ETH Transaction
-export const sendTransaction = async (fromWallet, toWallet, amount) => {
+export const sendTransaction = async (transactionData) => {
     try {
-        if (!fromWallet || !toWallet || !amount) {
-            throw new Error("From wallet, to wallet, and amount are required.");
+        const response = await fetch('/transfer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(transactionData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to send transaction');
         }
 
-        const res = await axios.post(`${API_URL}/send`, { fromWallet, toWallet, amount });
-        return res.data; // { success: true, transactionHash: "0x..." }
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("❌ Error sending transaction:", error.response?.data || error.message);
-        return { success: false, message: "Transaction failed." };
+        console.error('Error sending transaction:', error);
+        throw error; // Re-throw the error to be handled by the caller
     }
 };
+
+
 
 // ✅ Get Transaction History
 export const getTransactionHistory = async (walletAddress) => {
