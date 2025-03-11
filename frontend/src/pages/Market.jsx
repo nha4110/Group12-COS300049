@@ -1,63 +1,101 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useLocation } from "react-router-dom";
-import { getNFTsByCategory } from "../api/nftData.js";
-import { Container, Grid, Card, CardContent, CardMedia, Typography } from "@mui/material";
+import { useParams } from "react-router-dom";
+import { Container, Typography, CardMedia, Button, Grid, Card, CardContent } from "@mui/material";
+import axios from "axios";
+
+const IPFS_BASE_URL = "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
 
 const Market = () => {
-    const { category } = useParams();
-    const location = useLocation();
-    const [nfts, setNfts] = useState([]);
+  const { id } = useParams();
+  const [nft, setNft] = useState(null);
+  const [suggestedNfts, setSuggestedNfts] = useState([]);
+  const userId = 1; // Replace with actual logged-in user's ID
 
-    // ✅ Debugging logs
-    console.log("🟢 Category from URL:", category);
-    console.log("🟡 Current URL:", location.pathname);
+  useEffect(() => {
+    const fetchNFT = async () => {
+      try {
+        const metadataUrl = `${IPFS_BASE_URL}/${id}.json`;
+        const imageUrl = `${IPFS_BASE_URL}/${id}.png`;
+        const response = await axios.get(metadataUrl);
+        setNft({
+          id: id,
+          name: response.data.name || `NFT ${id}`,
+          description: response.data.description || "No description provided.",
+          image: imageUrl,
+          price: 5, // Example price in ETH
+          tokenID: `token-${id}`,
+          contractAddress: "0x123456789abcdef",
+          category: "Art",
+        });
+      } catch (error) {
+        console.error(`Error fetching NFT ${id}:`, error);
+      }
+    };
 
-    useEffect(() => {
-        if (!category) {
-            console.error("❌ No category found in URL.");
-            return;
-        }
+    fetchNFT();
+  }, [id]);
 
-        const fetchNFTs = async () => {
-            const data = await getNFTsByCategory(category);
-            setNfts(data);
-        };
+  const buyNFT = async () => {
+    if (!nft) return;
+    
+    try {
+      const response = await axios.post("http://localhost:8081/buy-nft", {
+        userId,
+        nftId: nft.id,
+        nftName: nft.name,
+        price: nft.price,
+        tokenID: nft.tokenID,
+        contractAddress: nft.contractAddress,
+        imageUrl: nft.image,
+        category: nft.category
+      });
 
-        fetchNFTs();
-    }, [category]);
+      if (response.data.success) {
+        alert("NFT purchased successfully!");
+      } else {
+        alert("Purchase failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error buying NFT:", error);
+      alert("Error purchasing NFT.");
+    }
+  };
 
-    return (
-        <Container sx={{ mt: 6 }}> {/* ✅ Added margin-top for spacing */}
-            <Typography variant="h4" sx={{ textAlign: "center", mb: 4 }}>
-                {category ? `${category} NFTs` : "Loading..."}
-            </Typography>
+  return (
+    <Container sx={{ mt: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      {nft ? (
+        <>
+          <Typography variant="h4" sx={{ mb: 2 }}>{nft.name}</Typography>
+          <CardMedia component="img" image={nft.image} alt={nft.name} sx={{ maxWidth: "500px", maxHeight: "500px", width: "100%", height: "auto", mb: 2 }} />
+          <Typography variant="body1" sx={{ mb: 1 }}>Description: {nft.description}</Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>Price: {nft.price} ETH</Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>Gas Price: 0.000000002 ETH</Typography>
+          <Button variant="contained" color="primary" onClick={buyNFT}>Buy Now</Button>
+        </>
+      ) : (
+        <Typography>Loading...</Typography>
+      )}
 
-            <Grid container spacing={3}>
-                {nfts.map(({ assetid, img, name, price }) => {
-                    console.log(`🖼️ Image URL for ${name}:`, img); // ✅ Debugging
-
-                    return (
-                        <Grid item xs={12} sm={6} md={4} key={assetid}>
-                            <Card sx={{ transition: "0.3s", "&:hover": { boxShadow: 6 }, mt: 2 }}> {/* ✅ Added margin-top */}
-                                <CardMedia
-                                    component="img"
-                                    height="200" // ✅ Increased height for better display
-                                    image={img} // ✅ Use `img` directly
-                                    alt={name}
-                                    sx={{ padding: "10px", objectFit: "contain" }} // ✅ Added padding above the image
-                                    onError={(e) => e.target.src = "/placeholder.jpg"} // ✅ Fallback image
-                                />
-                                <CardContent>
-                                    <Typography variant="h6">{name}</Typography>
-                                    <Typography variant="body1">Price: {price}</Typography>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    );
-                })}
-            </Grid>
-        </Container>
-    );
+      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>Suggested NFTs</Typography>
+      <Grid container spacing={3} justifyContent="center">
+        {suggestedNfts.map((suggestion) => (
+          <Grid item xs={12} sm={6} md={4} key={suggestion.id}>
+            <Card sx={{ maxWidth: 345 }}>
+              <CardMedia component="img" height="140" image={suggestion.image} alt={suggestion.name} />
+              <CardContent>
+                <Typography variant="h6" component="div">
+                  {suggestion.name}
+                </Typography>
+                <Typography variant="body2" component="div">
+                  {suggestion.description}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Container>
+  );
 };
 
 export default Market;

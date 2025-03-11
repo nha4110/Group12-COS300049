@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/authApi";
 import { useAuth } from "../scripts/AuthContext";
-import { Container, TextField, Button, Typography, Box } from "@mui/material";
+import { Container, TextField, Button, Typography, Box, CircularProgress } from "@mui/material";
 
 const Login = () => {
     const navigate = useNavigate();
     const { dispatch } = useAuth();
     const [formData, setFormData] = useState({ username: "", password: "" });
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false); // Add loading state
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -17,22 +18,34 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        setLoading(true); // Set loading to true
 
         if (!formData.username || !formData.password) {
             setError("Username and password are required.");
+            setLoading(false); // Set loading to false
             return;
         }
 
-        const response = await login(formData.username, formData.password);
+        try {
+            const response = await login(formData.username, formData.password);
 
-        if (response.success) {
-            // Dispatch the login action and save user data to localStorage
-            dispatch({ type: "LOGIN", payload: response.user });
-            localStorage.setItem("user", JSON.stringify(response.user)); // Store user data in localStorage
-            localStorage.setItem("jwtToken", response.token); // Store token if needed
-            navigate("/profile");
-        } else {
-            setError(response.message);
+            console.log("Login Response:", response);
+
+            if (response.success) {
+                console.log("Login User:", response.user);
+                dispatch({ type: "LOGIN", payload: response.user });
+                localStorage.setItem("user", JSON.stringify(response.user));
+                localStorage.setItem("jwtToken", response.token);
+                localStorage.setItem("wallet_address", response.user.wallet_address);
+                navigate("/profile");
+            } else {
+                setError(response.message);
+            }
+        } catch (err) {
+            console.error("Login Error:", err);
+            setError("An unexpected error occurred.");
+        } finally {
+            setLoading(false); // Set loading to false in finally block
         }
     };
 
@@ -61,8 +74,8 @@ const Login = () => {
                         onChange={handleChange}
                         required
                     />
-                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
-                        Login
+                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }} disabled={loading}>
+                        {loading ? <CircularProgress size={24} /> : "Login"}
                     </Button>
                 </form>
                 <Typography sx={{ mt: 2 }}>
