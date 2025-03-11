@@ -62,28 +62,35 @@ const Profile = () => {
                 alert("Invalid recipient address.");
                 return;
             }
-
+    
             if (!web3) {
                 alert("Please install MetaMask or another web3 provider.");
                 return;
             }
-
+    
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const senderAddress = accounts[0];
-
+    
             const amountWei = web3.utils.toWei(amount, 'ether');
-
+    
             const transactionObject = {
                 from: senderAddress,
                 to: recipientAddress,
                 value: amountWei,
                 gas: 21000,
             };
-
+    
+            alert("Processing your transaction... Please wait.");
+    
+            // Adding a short delay (2 seconds) before proceeding
+            await new Promise(resolve => setTimeout(resolve, 2000));
+    
             web3.eth.sendTransaction(transactionObject)
                 .on('transactionHash', (hash) => {
-                    alert(`Transaction successful! TX Hash: ${hash}`);
-                    fetchBalance(walletAddress);
+                    alert(`Transaction submitted! TX Hash: ${hash}`);
+                    setTimeout(() => {
+                        fetchBalance(walletAddress);
+                    }, 3000); // Additional delay before updating balance
                 })
                 .on('error', (error) => {
                     alert(`Transaction failed: ${error.message}`);
@@ -92,6 +99,7 @@ const Profile = () => {
             alert(`Transaction failed: ${error.message}`);
         }
     };
+    
 
     const handleTabChange = (event, newTab) => {
         setCurrentTab(newTab);

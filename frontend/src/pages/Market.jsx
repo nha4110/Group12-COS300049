@@ -75,25 +75,6 @@ const Market = () => {
       ) : (
         <Typography>Loading...</Typography>
       )}
-
-      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>Suggested NFTs</Typography>
-      <Grid container spacing={3} justifyContent="center">
-        {suggestedNfts.map((suggestion) => (
-          <Grid item xs={12} sm={6} md={4} key={suggestion.id}>
-            <Card sx={{ maxWidth: 345 }}>
-              <CardMedia component="img" height="140" image={suggestion.image} alt={suggestion.name} />
-              <CardContent>
-                <Typography variant="h6" component="div">
-                  {suggestion.name}
-                </Typography>
-                <Typography variant="body2" component="div">
-                  {suggestion.description}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
     </Container>
   );
 };

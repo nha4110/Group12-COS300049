@@ -45,44 +45,23 @@ const Home = () => {
   const [sortOrder, setSortOrder] = useState("");
 
   useEffect(() => {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      if (args[0] && args[0].includes && args[0].includes("404")) {
-        return;
-      }
-      originalConsoleError(...args);
-    };
-
     const fetchNFTs = async () => {
       let loadedNFTs = [];
-      let i = 0;
-
-      while (true) {
+      for (let i = 0; i < 60; i++) {
         try {
           const metadataUrl = `${IPFS_BASE_URL}/${i}.json`;
           const response = await axios.get(metadataUrl);
-
           loadedNFTs.push({
             id: i,
             name: response.data.name || `NFT ${i}`,
             image: `${IPFS_BASE_URL}/${i}.png`,
-            color: response.data.attributes?.find(
-              (attr) => attr.trait_type === "Background"
-            )?.value || "Unknown",
+            color: response.data.attributes?.find(attr => attr.trait_type === "Background")?.value || "Unknown",
             price: 5, // All NFTs have a price of 5 ETH
           });
-
-          i++;
         } catch (error) {
-          if (error.response && error.response.status === 404) {
-            console.log(`✅ No more NFTs found at ID ${i}. Stopping fetch.`);
-            break;
-          } else {
-            console.error(`❌ Error fetching NFT ${i}:`, error);
-          }
+          console.error(`Error fetching NFT ${i}:`, error);
         }
       }
-
       setNfts(loadedNFTs);
     };
 
