@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, useEffect } from "react";
+import React, { createContext, useReducer, useContext, useEffect, useState } from "react";
 
 const initialState = {
     user: null,
@@ -9,10 +9,7 @@ const authReducer = (state, action) => {
         case "LOGIN":
             return {
                 ...state,
-                user: {
-                    ...action.payload,
-                    walletAddress: action.payload.wallet_address,
-                },
+                user: action.payload,
             };
         case "LOGOUT":
             return { ...state, user: null };
@@ -25,29 +22,45 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
+    const [loading, setLoading] = useState(true);
 
     const logout = () => {
         dispatch({ type: "LOGOUT" });
-        // Remove all user data from localStorage on logout
-        localStorage.removeItem("user_wallet");
-        localStorage.removeItem("username");
+        localStorage.removeItem("user");
+        localStorage.removeItem("jwtToken");
+        localStorage.removeItem("wallet_address");
     };
 
     useEffect(() => {
-        // Load user data from localStorage if available
-        const walletAddress = localStorage.getItem("user_wallet");
-        const username = localStorage.getItem("username");
-
-        if (walletAddress && username) {
-            dispatch({
-                type: "LOGIN",
-                payload: { wallet_address: walletAddress, username: username },
-            });
+        if (process.env.NODE_ENV === 'development') {
+            const devResetFlag = localStorage.getItem('devResetFlag');
+            if (!devResetFlag){
+                localStorage.clear();
+                localStorage.setItem('devResetFlag', 'true');
+            }
         }
+
+        const storedUser = localStorage.getItem("user");
+
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                dispatch({
+                    type: "LOGIN",
+                    payload: user,
+                });
+            } catch (error) {
+                console.error("AuthContext: Error parsing user data from localStorage:", error);
+                localStorage.removeItem("user");
+                localStorage.removeItem("jwtToken");
+                localStorage.removeItem("wallet_address");
+            }
+        }
+        setLoading(false);
     }, []);
 
     return (
-        <AuthContext.Provider value={{ state, dispatch, logout }}>
+        <AuthContext.Provider value={{ state, dispatch, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

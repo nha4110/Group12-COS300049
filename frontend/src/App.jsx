@@ -34,7 +34,7 @@ function App() {
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/signup" element={<Signup />} />
                                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                                <Route path="/market/:category" element={<Market />} />
+                                <Route path="/market/nft/:id" element={<Market />} /> {/* Corrected route */}
                                 <Route path="*" element={<NotFound />} />
                             </Routes>
                         </Suspense>
