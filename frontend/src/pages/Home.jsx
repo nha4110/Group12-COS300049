@@ -40,37 +40,58 @@ const Home = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [nfts, setNfts] = useState([]);
-  const collectionsRef = useRef(null);
+  const nftsRef = useRef(null); // Ref for the NFT grid
   const [colorFilter, setColorFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("");
 
   useEffect(() => {
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      if (args[0] && args[0].includes && args[0].includes("404")) {
+        return;
+      }
+      originalConsoleError(...args);
+    };
+
     const fetchNFTs = async () => {
       let loadedNFTs = [];
-      for (let i = 0; i < 60; i++) {
+      let i = 0;
+
+      while (true) {
         try {
           const metadataUrl = `${IPFS_BASE_URL}/${i}.json`;
           const response = await axios.get(metadataUrl);
+
           loadedNFTs.push({
             id: i,
             name: response.data.name || `NFT ${i}`,
             image: `${IPFS_BASE_URL}/${i}.png`,
-            color: response.data.attributes?.find(attr => attr.trait_type === "Background")?.value || "Unknown",
+            color: response.data.attributes?.find(
+              (attr) => attr.trait_type === "Background"
+            )?.value || "Unknown",
             price: 5, // All NFTs have a price of 5 ETH
           });
+
+          i++;
         } catch (error) {
-          console.error(`Error fetching NFT ${i}:`, error);
+          if (error.response && error.response.status === 404) {
+            console.log(`✅ No more NFTs found at ID ${i}. Stopping fetch.`);
+            break;
+          } else {
+            console.error(`❌ Error fetching NFT ${i}:`, error);
+          }
         }
       }
+
       setNfts(loadedNFTs);
     };
 
     fetchNFTs();
   }, []);
 
-  const scrollToCollections = () => {
-    if (collectionsRef.current) {
-      collectionsRef.current.scrollIntoView({ behavior: "smooth" });
+  const scrollToNFTs = () => {
+    if (nftsRef.current) {
+      nftsRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -102,8 +123,6 @@ const Home = () => {
       return 0;
     });
   }
-
-  const uniqueColors = [...new Set(nfts.map((nft) => nft.color))];
 
   return (
     <Container sx={{ mt: 4 }}>
@@ -142,40 +161,40 @@ const Home = () => {
               transform: "scale(1.05)",
             },
           }}
-          onClick={scrollToCollections}
+          onClick={scrollToNFTs} // Changed to scrollToNFTs
         >
           Explore Marketplace
         </Button>
       </Box>
 
-  {/* Search and Filters */}
-  <SearchBarWrapper>
-    <SearchBox>
-      <SearchIcon sx={{ color: "#8e24aa" }} />
-      <StyledInputBase
-        placeholder="Search NFTs..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-    </SearchBox>
-    <FormControl sx={{ m: 1, minWidth: 120 }}>
-      <InputLabel id="sort-order-label">Sort By</InputLabel>
-      <Select
-        labelId="sort-order-label"
-        id="sort-order"
-        value={sortOrder}
-        onChange={handleSortOrderChange}
-      >
-        <MenuItem value="az">A-Z</MenuItem>
-        <MenuItem value="za">Z-A</MenuItem>
-        <MenuItem value="priceLow">Price (Low to High)</MenuItem>
-        <MenuItem value="priceHigh">Price (High to Low)</MenuItem>
-      </Select>
-    </FormControl>
-  </SearchBarWrapper>
+      {/* Search and Filters */}
+      <SearchBarWrapper>
+        <SearchBox>
+          <SearchIcon sx={{ color: "#8e24aa" }} />
+          <StyledInputBase
+            placeholder="Search NFTs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBox>
+        <FormControl sx={{ m: 1, minWidth: 120 }}>
+          <InputLabel id="sort-order-label">Sort By</InputLabel>
+          <Select
+            labelId="sort-order-label"
+            id="sort-order"
+            value={sortOrder}
+            onChange={handleSortOrderChange}
+          >
+            <MenuItem value="az">A-Z</MenuItem>
+            <MenuItem value="za">Z-A</MenuItem>
+            <MenuItem value="priceLow">Price (Low to High)</MenuItem>
+            <MenuItem value="priceHigh">Price (High to Low)</MenuItem>
+          </Select>
+        </FormControl>
+      </SearchBarWrapper>
 
       {/* NFT Cards */}
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+      <Grid container spacing={3} sx={{ mt: 2 }} ref={nftsRef}> {/* Added ref here */}
         {filteredNFTs.map((nft) => (
           <Grid item xs={12} sm={6} md={4} key={nft.id}>
             <Card onClick={() => navigate(`/market/nft/${nft.id}`)}>

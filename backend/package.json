@@ -10,6 +10,7 @@
     "init": "npm run clean && npm run start:ganache & wait-on http://localhost:8545 && npm run deploy"
   },
   "dependencies": {
+    "@chainlink/contracts": "^1.3.0",
     "@openzeppelin/contracts": "^5.2.0",
     "@truffle/contract": "^4.6.31",
     "bcryptjs": "^3.0.2",

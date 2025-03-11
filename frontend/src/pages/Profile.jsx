@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Paper, Button, TextField, Tabs, Tab, Box } from "@mui/material";
+import { 
+    Container, Typography, Paper, Button, TextField, Tabs, Tab, Box 
+} from "@mui/material";
 import { getWalletBalance } from "../api/wallet";
+import { uploadToPinata } from "../api/pinataService";
 import { useAuth } from "../scripts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { ethers } from 'ethers';
-import Web3 from 'web3';
+import { ethers } from "ethers";
+import Web3 from "web3";
 
 const Profile = () => {
     const { state, dispatch } = useAuth();
@@ -19,8 +22,13 @@ const Profile = () => {
     const [gasPrice, setGasPrice] = useState("0.000000002");
     const [balanceAfter, setBalanceAfter] = useState("");
     const [currentTab, setCurrentTab] = useState("NFT Collection");
-
+    
     const [web3, setWeb3] = useState(null);
+    
+    // Upload state variables
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [ipfsHash, setIpfsHash] = useState("");
 
     useEffect(() => {
         if (user && user.walletAddress) {
@@ -101,6 +109,33 @@ const Profile = () => {
         }
     }, [balance, amount, gasPrice]);
 
+    // Upload file to Pinata
+    const handleFileUpload = async () => {
+        if (!selectedFile) {
+            alert("Please select a file first.");
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const fileName = selectedFile.name;
+            const ipfsHash = await uploadToPinata(selectedFile, fileName);
+
+            if (ipfsHash) {
+                setIpfsHash(ipfsHash);
+                alert(`Upload successful! IPFS Hash: ${ipfsHash}`);
+            } else {
+                alert("Upload failed. Please try again.");
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Upload failed.");
+        }
+
+        setUploading(false);
+    };
+
     if (!user) {
         return <Typography variant="h6" color="error">Unauthorized Access</Typography>;
     }
@@ -120,6 +155,7 @@ const Profile = () => {
                 <Tabs value={currentTab} onChange={handleTabChange} centered>
                     <Tab label="NFT Collection" value="NFT Collection" />
                     <Tab label="Balance Sender" value="Balance Sender" />
+                    <Tab label="Upload" value="Upload" />
                 </Tabs>
             </Box>
 
@@ -143,6 +179,21 @@ const Profile = () => {
                     <Button variant="contained" color="primary" onClick={sendDirectETH}>
                         Send
                     </Button>
+                </Paper>
+            )}
+
+            {currentTab === "Upload" && (
+                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+                    <Typography variant="h6">Upload File to IPFS</Typography>
+                    <input type="file" onChange={(e) => setSelectedFile(e.target.files[0])} />
+                    <Button variant="contained" color="primary" sx={{ marginTop: 2 }} onClick={handleFileUpload} disabled={uploading}>
+                        {uploading ? "Uploading..." : "Upload"}
+                    </Button>
+                    {ipfsHash && (
+                        <Typography variant="body1" sx={{ marginTop: 2 }}>
+                            IPFS Hash: <a href={`https://gateway.pinata.cloud/ipfs/${ipfsHash}`} target="_blank" rel="noopener noreferrer">{ipfsHash}</a>
+                        </Typography>
+                    )}
                 </Paper>
             )}
 
