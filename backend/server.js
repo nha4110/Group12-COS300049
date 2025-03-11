@@ -83,12 +83,13 @@ async function checkAndUpdateWallets() {
     const currentWallet = extractAddress(userWallets.rows[i].wallet_address);
 
     if (expectedWallet && currentWallet !== expectedWallet) {
-      updates.push(`WHEN accountid = <span class="math-inline">\{userWallets\.rows\[i\]\.accountid\} THEN '</span>{expectedWallet}'`);
+      updates.push(`WHEN accountid = ${userWallets.rows[i].accountid} THEN '${expectedWallet}'`);
     }
   }
 
   if (updates.length > 0) {
-    await pool.query(`UPDATE users SET wallet_address = CASE ${updates.join(" ")} ELSE wallet_address END`);
+    const query = `UPDATE users SET wallet_address = CASE ${updates.join(" ")} ELSE wallet_address END`;
+    await pool.query(query);
     console.log("✅ Batch wallet updates completed.");
   } else {
     console.log("✅ All user wallets are correct.");
