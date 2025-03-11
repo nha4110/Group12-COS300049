@@ -24,22 +24,6 @@ const pool = new Pool({
 // ✅ Ethereum Provider (Ganache on port 8545)
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
 
-// ✅ Smart Contract Setup
-const contractABI = require("./build/contracts/EthTransfer.json");
-
-// Read the latest deployed contract address
-const contractAddress = contractABI.networks
-  ? Object.values(contractABI.networks).pop().address
-  : null;
-
-if (!contractAddress) {
-  console.error("❌ No deployed contract found. Run `truffle migrate --reset` first.");
-  process.exit(1); // Exit to prevent errors
-}
-
-const contract = new ethers.Contract(contractAddress, contractABI.abi, provider);
-console.log(`✅ Smart contract loaded at: ${contractAddress}`);
-
 // ✅ Admin Wallet File
 const ADMIN_WALLET_FILE = "admin_wallet.txt";
 
