@@ -11,8 +11,8 @@ const Home = React.lazy(() => import("./pages/Home"));
 const Login = React.lazy(() => import("./pages/Login"));
 const Signup = React.lazy(() => import("./pages/Signup"));
 const Profile = React.lazy(() => import("./pages/Profile"));
-const Market = React.lazy(() => import("./pages/Market"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
+const History = React.lazy(() => import("./pages/History"));
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -34,7 +34,7 @@ function App() {
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/signup" element={<Signup />} />
                                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                                <Route path="/market/nft/:id" element={<Market />} /> {/* Corrected route */}
+                                <Route path="/History" element={<History />} />
                                 <Route path="*" element={<NotFound />} />
                             </Routes>
                         </Suspense>

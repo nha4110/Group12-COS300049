@@ -1,191 +1,288 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Container, Box, Grid, Card, CardContent, CardMedia, Typography, Button, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import { styled } from "@mui/material/styles";
+import React, { useState, useEffect } from "react";
+import { Container, Button, Typography, CardMedia, Grid, Card, CardContent, CircularProgress, Box } from "@mui/material";
+import { ethers } from "ethers";
 import axios from "axios";
+import contractData from "../../../backend/build/contracts/MyNFT.json";
 
-const IPFS_BASE_URL = "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
+const CONTRACT_ADDRESS = "0xA3e8472Eb803c5478F476175167b6c48Bf5eF530"; // Update if redeployed
+const ABI = contractData.abi;
+const PINATA_BASE_URL = "https://gateway.pinata.cloud/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
+const BACKEND_URL = "http://localhost:8081";
 
-const SearchBarWrapper = styled(Box)({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginTop: "-20px",
-  marginBottom: "20px",
-  gap: "10px",
-  background: "white",
-});
-
-const SearchBox = styled("div")({
-  display: "flex",
-  alignItems: "center",
-  backgroundColor: "white",
-  borderRadius: "30px",
-  padding: "12px 20px",
-  width: "60%",
-  maxWidth: "600px",
-  boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.2)",
-  border: "2px solid white",
-});
-
-const StyledInputBase = styled("input")({
-  flex: 1,
-  color: "black",
-  paddingLeft: "10px",
-  fontSize: "16px",
-});
+const ALTERNATIVE_GATEWAYS = [
+  "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy",
+  "https://cloudflare-ipfs.com/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy",
+];
 
 const Home = () => {
-  const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
   const [nfts, setNfts] = useState([]);
-  const nftsRef = useRef(null); // Ref for the NFT grid
-  const [colorFilter, setColorFilter] = useState("");
-  const [sortOrder, setSortOrder] = useState("");
+  const [account, setAccount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [gateway, setGateway] = useState(0);
+  const [mintedStatus, setMintedStatus] = useState({});
 
   useEffect(() => {
-    const fetchNFTs = async () => {
-      let loadedNFTs = [];
-      for (let i = 0; i < 60; i++) {
-        try {
-          const metadataUrl = `${IPFS_BASE_URL}/${i}.json`;
-          const response = await axios.get(metadataUrl);
-          loadedNFTs.push({
-            id: i,
-            name: response.data.name || `NFT ${i}`,
-            image: `${IPFS_BASE_URL}/${i}.png`,
-            color: response.data.attributes?.find(attr => attr.trait_type === "Background")?.value || "Unknown",
-            price: 5, // All NFTs have a price of 5 ETH
-          });
-        } catch (error) {
-          console.error(`Error fetching NFT ${i}:`, error);
-        }
-      }
-      setNfts(loadedNFTs);
-    };
-
     fetchNFTs();
-  }, []);
+    checkConnection();
+  }, [gateway]);
 
-  const scrollToNFTs = () => {
-    if (nftsRef.current) {
-      nftsRef.current.scrollIntoView({ behavior: "smooth" });
+  const checkConnection = async () => {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+        }
+      } catch (error) {
+        console.error("Error checking connection:", error);
+      }
     }
   };
 
-  const handleColorFilterChange = (event) => {
-    setColorFilter(event.target.value);
+  const getCurrentGateway = () => {
+    if (gateway === 0) return PINATA_BASE_URL;
+    return ALTERNATIVE_GATEWAYS[gateway - 1];
   };
 
-  const handleSortOrderChange = (event) => {
-    setSortOrder(event.target.value);
+  const tryNextGateway = () => {
+    const nextGateway = (gateway + 1) % (ALTERNATIVE_GATEWAYS.length + 1);
+    console.log(`Switching to gateway ${nextGateway}: ${getCurrentGateway()}`);
+    setGateway(nextGateway);
   };
 
-  let filteredNFTs = nfts.filter((nft) => {
-    const searchMatch = nft.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const colorMatch = colorFilter ? nft.color === colorFilter : true;
-    return searchMatch && colorMatch;
-  });
+  const fetchNFTs = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const availableNFTs = Array.from({ length: 5 }, (_, i) => i);
+      const currentGateway = getCurrentGateway();
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
 
-  if (sortOrder) {
-    filteredNFTs = [...filteredNFTs].sort((a, b) => {
-      if (sortOrder === "az") {
-        return a.name.localeCompare(b.name);
-      } else if (sortOrder === "za") {
-        return b.name.localeCompare(a.name);
-      } else if (sortOrder === "priceLow") {
-        return a.price - b.price;
-      } else if (sortOrder === "priceHigh") {
-        return b.price - a.price;
+      const nftPromises = availableNFTs.map(async (id) => {
+        try {
+          const metadataUrl = `${currentGateway}/${id}.json`;
+          const response = await axios.get(metadataUrl, { timeout: 5000 });
+          const isMintedOnChain = await contract.isMinted(id);
+
+          const ownershipResponse = await axios.get(`${BACKEND_URL}/check-nft-ownership/${id}`);
+          const isOwned = ownershipResponse.data.isOwned;
+
+          let imageUrl = response.data.image?.startsWith("ipfs://")
+            ? `https://ipfs.io/ipfs/${response.data.image.replace("ipfs://", "")}`
+            : response.data.image || `${currentGateway}/${id}.png`;
+
+          return {
+            id,
+            name: response.data.name || `NFT ${id}`,
+            description: response.data.description || "No description.",
+            image: imageUrl,
+            pngPath: `${currentGateway}/${id}.png`,
+            svgPath: `${currentGateway}/${id}.svg`,
+            metadata: response.data,
+            isMinted: isMintedOnChain || isOwned,
+          };
+        } catch (error) {
+          console.warn(`Failed to fetch NFT ${id}:`, error.message);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(nftPromises);
+      const validNFTs = results.filter((nft) => nft !== null);
+
+      if (validNFTs.length === 0) {
+        console.log("No NFTs loaded from any gateway. Trying next gateway...");
+        tryNextGateway();
+        return;
       }
-      return 0;
-    });
-  }
+
+      setNfts(validNFTs);
+      setMintedStatus(Object.fromEntries(validNFTs.map((nft) => [nft.id, nft.isMinted])));
+    } catch (error) {
+      console.error("Error fetching NFTs:", error);
+      setError("Failed to load NFTs. Please check your connection or IPFS content availability.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const connectMetaMask = async () => {
+    if (!window.ethereum) return alert("MetaMask not detected!");
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      setAccount(accounts[0]);
+    } catch (error) {
+      console.error("MetaMask connection error:", error);
+      alert("Failed to connect to MetaMask. Please try again.");
+    }
+  };
+
+  const mintNFT = async (tokenId) => {
+    if (!account) return alert("Connect MetaMask first.");
+  
+    try {
+      const ownershipResponse = await axios.get(`${BACKEND_URL}/check-nft-ownership/${tokenId}`);
+      if (ownershipResponse.data.isOwned) {
+        alert("This NFT is already owned and cannot be minted again.");
+        return;
+      }
+  
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+  
+      const cid = PINATA_BASE_URL.replace("https://gateway.pinata.cloud/ipfs/", "");
+      const metadataURI = `ipfs://${cid}/${tokenId}.json`;
+  
+      const tx = await contract.payToMint(account, metadataURI, tokenId, {
+        value: ethers.parseEther("0.05"),
+      });
+  
+      alert("Transaction submitted. Waiting for confirmation...");
+      const receipt = await tx.wait();
+  
+      const gasUsed = receipt.gasUsed ? receipt.gasUsed.toString() : "0";
+      const effectiveGasPrice = receipt.effectiveGasPrice ? receipt.effectiveGasPrice.toString() : "0";
+      const totalGasFeeWei = receipt.gasUsed * receipt.effectiveGasPrice; // Fixed to BigInt
+      const totalGasFeeEth = ethers.formatEther(totalGasFeeWei);
+  
+      const txDetails = {
+        txHash: receipt.hash, // Use receipt.hash directly
+        from: receipt.from,
+        to: CONTRACT_ADDRESS,
+        amount: "-0.05 ETH",
+        gasUsed,
+        totalGasFee: totalGasFeeEth,
+      };
+  
+      console.log("Transaction confirmed:", receipt);
+      console.log("Transaction ID:", txDetails.txHash);
+      console.log("View on block explorer:", `https://etherscan.io/tx/${txDetails.txHash}`);
+  
+      const metadataUrl = `${PINATA_BASE_URL}/${tokenId}.json`;
+      const metadataResponse = await axios.get(metadataUrl);
+      const nftName = metadataResponse.data.name || `NFT ${tokenId}`;
+      const imageUrl = metadataResponse.data.image?.startsWith("ipfs://")
+        ? `https://ipfs.io/ipfs/${metadataResponse.data.image.replace("ipfs://", "")}`
+        : metadataResponse.data.image || `${PINATA_BASE_URL}/${tokenId}.png`;
+  
+      const buyResponse = await axios.post(`${BACKEND_URL}/buy-nft`, {
+        walletAddress: account,
+        nftId: tokenId,
+        nftName,
+        price: "0.05",
+        tokenID: tokenId,
+        contractAddress: CONTRACT_ADDRESS,
+        imageUrl,
+        category: "Art",
+        txHash: txDetails.txHash,
+      });
+  
+      if (!buyResponse.data.success) {
+        throw new Error(`Failed to record NFT purchase in database: ${buyResponse.data.message}`);
+      }
+  
+      setMintedStatus((prev) => ({ ...prev, [tokenId]: true }));
+      alert("NFT minted and recorded successfully!");
+    } catch (error) {
+      console.error("Minting error:", error);
+      alert(`Minting failed: ${error.message || "Unknown error"}`);
+    }
+  };
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Box
-        sx={{
-          height: "400px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          flexDirection: "column",
-          color: "white",
-          background: "linear-gradient(135deg, #2c0e3a, #8e24aa)",
-          borderRadius: "15px",
-          padding: "40px",
-          boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.3)",
-        }}
-      >
-        <Typography variant="h3" sx={{ fontWeight: "bold", mb: 2 }}>
-          Discover & Collect Rare NFTs
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          NFT Collection
         </Typography>
-        <Typography variant="h6" sx={{ opacity: 0.8, mb: 3 }}>
-          Explore digital art & collectibles in the most trusted marketplace.
-        </Typography>
-        <Button
-          sx={{
-            background: "#8e24aa",
-            color: "white",
-            padding: "12px 20px",
-            borderRadius: "30px",
-            fontSize: "16px",
-            fontWeight: "bold",
-            transition: "0.3s",
-            "&:hover": {
-              background: "#4a148c",
-              transform: "scale(1.05)",
-            },
-          }}
-          onClick={scrollToNFTs} // Changed to scrollToNFTs
-        >
-          Explore Marketplace
-        </Button>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          {!account ? (
+            <Button variant="contained" onClick={connectMetaMask}>
+              Connect MetaMask
+            </Button>
+          ) : (
+            <Typography variant="body1">
+              Connected: {account.substring(0, 6)}...{account.substring(account.length - 4)}
+            </Typography>
+          )}
+          <Button variant="outlined" onClick={tryNextGateway}>
+            Try Different Gateway
+          </Button>
+          <Button variant="outlined" onClick={fetchNFTs}>
+            Refresh NFTs
+          </Button>
+        </Box>
       </Box>
 
-      {/* Search and Filters */}
-      <SearchBarWrapper>
-        <SearchBox>
-          <SearchIcon sx={{ color: "#8e24aa" }} />
-          <StyledInputBase
-            placeholder="Search NFTs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-        <FormControl sx={{ m: 1, minWidth: 120 }}>
-          <InputLabel id="sort-order-label">Sort By</InputLabel>
-          <Select
-            labelId="sort-order-label"
-            id="sort-order"
-            value={sortOrder}
-            onChange={handleSortOrderChange}
-          >
-            <MenuItem value="az">A-Z</MenuItem>
-            <MenuItem value="za">Z-A</MenuItem>
-            <MenuItem value="priceLow">Price (Low to High)</MenuItem>
-            <MenuItem value="priceHigh">Price (High to Low)</MenuItem>
-          </Select>
-        </FormControl>
-      </SearchBarWrapper>
-
-      {/* NFT Cards */}
-      <Grid container spacing={3} sx={{ mt: 2 }} ref={nftsRef}> {/* Added ref here */}
-        {filteredNFTs.map((nft) => (
-          <Grid item xs={12} sm={6} md={4} key={nft.id}>
-            <Card onClick={() => navigate(`/market/nft/${nft.id}`)}>
-              <CardMedia component="img" height="200" image={nft.image} alt={nft.name} />
-              <CardContent>
-                <Typography variant="h6">{nft.name}</Typography>
-                <Typography variant="body2">Price: {nft.price} ETH</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Typography color="error" align="center">
+          {error}
+        </Typography>
+      ) : nfts.length === 0 ? (
+        <Typography align="center">No NFTs found. Check IPFS content or try refreshing.</Typography>
+      ) : (
+        <Grid container spacing={4}>
+          {nfts.map((nft) => (
+            <Grid item key={nft.id} xs={12} sm={6} md={4}>
+              <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <Box sx={{ position: "relative", pt: "100%" }}>
+                  <CardMedia
+                    component="img"
+                    image={nft.image}
+                    alt={nft.name}
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                    }}
+                    onError={(e) => {
+                      e.target.src = nft.pngPath;
+                      e.target.onerror = () => {
+                        e.target.src = nft.svgPath;
+                        e.target.onerror = () => {
+                          e.target.src = "https://via.placeholder.com/400?text=Image+Not+Found";
+                          e.target.onerror = null;
+                        };
+                      };
+                    }}
+                  />
+                </Box>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h5" component="h2">
+                    {nft.name}
+                  </Typography>
+                  <Typography>{nft.description}</Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      Token ID: {nft.id}
+                    </Typography>
+                  </Box>
+                </CardContent>
+                <Box sx={{ p: 2 }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => mintNFT(nft.id)}
+                    disabled={!account || mintedStatus[nft.id]}
+                  >
+                    {mintedStatus[nft.id] ? "Minted/Owned" : "Mint NFT"}
+                  </Button>
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
 };

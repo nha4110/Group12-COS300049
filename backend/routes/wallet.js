@@ -1,76 +1,64 @@
-// wallet.js
 const express = require("express");
 const { ethers } = require("ethers");
-const { Pool } = require("pg");
-require("dotenv").config(); // Load environment variables from .env file
 
 const router = express.Router();
-const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545"); // Ganache RPC
 
-// ✅ PostgreSQL Connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Get connection string from .env file
-  ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }, // Handle SSL based on URL
-});
+module.exports = (pool, provider) => {
+  // Get Wallet for a User by accountID
+  router.get("/:userId", async (req, res) => {
+    const { userId } = req.params;
 
-// ✅ Create Wallet for a New User
-router.post("/create", async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ success: false, message: "User ID required" });
+    try {
+      const result = await pool.query("SELECT wallet_address FROM users WHERE accountID = $1", [userId]);
+      if (result.rowCount === 0) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      res.json({ success: true, walletAddress: result.rows[0].wallet_address });
+    } catch (error) {
+      console.error("Error fetching wallet:", error);
+      if (error.code === "ECONNREFUSED") {
+        return res.status(500).json({ success: false, message: "Failed to connect to database" });
+      }
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  });
 
-  try {
-    // Generate a new Ethereum wallet
-    const wallet = ethers.Wallet.createRandom();
+  // Get Wallet Balance
+  router.get("/balance/:walletAddress", async (req, res) => {
+    const { walletAddress } = req.params;
 
-    // Save wallet address and private key in the database
-    const result = await pool.query(
-      "UPDATE users SET wallet_address = $1, private_key = $2 WHERE accountID = $3 RETURNING wallet_address",
-      [wallet.address, wallet.privateKey, userId]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: "User not found" });
+    if (!ethers.isAddress(walletAddress)) {
+      return res.status(400).json({ success: false, message: "Invalid wallet address" });
     }
 
-    res.json({ success: true, walletAddress: wallet.address });
-  } catch (error) {
-    console.error("Error creating wallet:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// ✅ Get Wallet for a User
-router.get("/:userId", async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const result = await pool.query("SELECT wallet_address FROM users WHERE accountID = $1", [userId]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: "User not found" });
+    try {
+      const balanceWei = await provider.getBalance(walletAddress);
+      const balanceETH = ethers.formatEther(balanceWei);
+      res.json({ success: true, balance: balanceETH });
+    } catch (error) {
+      console.error(`Error fetching balance for ${walletAddress}:`, error.message, error.stack);
+      if (error.code === "NETWORK_ERROR" || error.code === "SERVER_ERROR") {
+        return res.status(503).json({ success: false, message: "Blockchain network unavailable" });
+      }
+      res.status(500).json({ success: false, message: "Server error", details: error.message });
     }
+  });
 
-    res.json({ success: true, walletAddress: result.rows[0].wallet_address });
-  } catch (error) {
-    console.error("Error fetching wallet:", error);
-    if (error.code === 'ECONNREFUSED') {
-      return res.status(500).json({ success: false, message: "Failed to connect to database" });
+  // Get accountID by wallet address
+  router.get("/address/:walletAddress", async (req, res) => {
+    const { walletAddress } = req.params;
+
+    try {
+      const result = await pool.query("SELECT accountID FROM users WHERE wallet_address = $1", [walletAddress]);
+      if (result.rowCount === 0) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      res.json({ success: true, accountId: result.rows[0].accountid });
+    } catch (error) {
+      console.error("Error fetching account ID by wallet address:", error);
+      res.status(500).json({ success: false, message: "Server error" });
     }
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+  });
 
-// ✅ Get Wallet Balance
-router.get("/balance/:walletAddress", async (req, res) => {
-  const { walletAddress } = req.params;
-
-  try {
-    const balanceWei = await provider.getBalance(walletAddress);
-    const balanceETH = ethers.formatEther(balanceWei);
-    res.json({ success: true, balance: `${balanceETH}` }); // Remove " ETH"
-  } catch (error) {
-    console.error("Error fetching balance:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-module.exports = router;
+  return router;
+};

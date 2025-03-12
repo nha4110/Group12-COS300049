@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { AppBar, Toolbar, Typography, Avatar, Menu, MenuItem, IconButton, Drawer, List, ListItem, ListItemText, Divider } from "@mui/material";
 import { useAuth } from "../scripts/AuthContext";
-import { getWalletBalance } from "../api/wallet";
 import { useLocation, useNavigate } from "react-router-dom";
+import Web3 from "web3";
 
 const SearchAppBar = () => {
     const { state, logout } = useAuth();
@@ -10,7 +10,7 @@ const SearchAppBar = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
-    const walletAddress = state?.user?.wallet_address;
+    const walletAddress = state?.user?.walletAddress;
 
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -24,32 +24,68 @@ const SearchAppBar = () => {
     };
 
     const fetchBalance = useCallback(async () => {
-        if (!walletAddress) return;
+        if (!walletAddress || !window.ethereum) return;
         try {
-            const response = await getWalletBalance(walletAddress);
-            if (response.success) {
-                const newBalance = response.balance || "0.0000";
-                setBalance(newBalance);
-                localStorage.setItem("ethBalance", newBalance);
-            }
+            const web3 = new Web3(window.ethereum);
+            const balanceWei = await web3.eth.getBalance(walletAddress);
+            const balanceEth = web3.utils.fromWei(balanceWei, "ether");
+            setBalance(parseFloat(balanceEth).toFixed(4));
         } catch (error) {
             console.error("❌ Error fetching ETH balance:", error);
         }
     }, [walletAddress]);
 
     useEffect(() => {
-        const storedBalance = localStorage.getItem("ethBalance");
         if (state.user) {
-            if (storedBalance) {
-                setBalance(storedBalance);
-            } else {
-                fetchBalance();
-            }
+            fetchBalance();
         } else {
             setBalance(null);
-            localStorage.removeItem("ethBalance");
         }
     }, [state.user, fetchBalance]);
+
+    const sendDirectETH = async () => {
+        try {
+            if (!ethers.isAddress(recipientAddress)) {
+                alert("Invalid recipient address.");
+                return;
+            }
+    
+            if (!web3) {
+                alert("Please install MetaMask or another web3 provider.");
+                return;
+            }
+    
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const senderAddress = accounts[0];
+    
+            const amountWei = web3.utils.toWei(amount, 'ether');
+    
+            const transactionObject = {
+                from: senderAddress,
+                to: recipientAddress,
+                value: amountWei,
+                gas: 21000,
+            };
+    
+            alert("Processing your transaction... Please wait.");
+    
+            await new Promise(resolve => setTimeout(resolve, 2000));
+    
+            web3.eth.sendTransaction(transactionObject)
+                .on('transactionHash', (hash) => {
+                    alert(`Transaction submitted! TX Hash: ${hash}`);
+                    setTimeout(() => {
+                        fetchBalance(walletAddress);
+                        window.location.reload(); // Refresh after transaction confirmation
+                    }, 3000);
+                })
+                .on('error', (error) => {
+                    alert(`Transaction failed: ${error.message}`);
+                });
+        } catch (error) {
+            alert(`Transaction failed: ${error.message}`);
+        }
+    };
 
     const handleLogout = () => {
         logout();
@@ -78,7 +114,7 @@ const SearchAppBar = () => {
 
                 {state.user && balance !== null && (
                     <Typography variant="body1" sx={{ marginRight: "20px" }}>
-                        <strong>ETH Balance:</strong> {balance}
+                        <strong>ETH Balance:</strong> {balance} ETH
                     </Typography>
                 )}
 
@@ -95,9 +131,7 @@ const SearchAppBar = () => {
                         </Menu>
                     </>
                 ) : (
-                    <Typography variant="body1" sx={{ cursor: "pointer" }} onClick={() => navigate("/login")}>
-                        Login
-                    </Typography>
+                    <Typography variant="body1" sx={{ cursor: "pointer" }} onClick={() => navigate("/login")}>Login</Typography>
                 )}
             </Toolbar>
 

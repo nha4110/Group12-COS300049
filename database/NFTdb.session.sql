@@ -10,7 +10,7 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
     password VARCHAR(255) NOT NULL,
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    wallet_address VARCHAR(255) UNIQUE
+    wallet_address VARCHAR(255) UNIQUE -- No private_key column
 );
 
 -- Create assets table
@@ -26,12 +26,17 @@ CREATE TABLE assets (
     FOREIGN KEY (owner) REFERENCES users(accountID) ON DELETE CASCADE
 );
 
--- Create transactions table
+-- Create transactions table (unified for buy-nft and transfer)
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
-    buyer VARCHAR(255) NOT NULL,
-    seller VARCHAR(255) NOT NULL,
-    amount DECIMAL(10,4) NOT NULL,
-    token_id VARCHAR(255) NOT NULL,
-    tx_hash VARCHAR(255) UNIQUE NOT NULL
+    accountID INT, -- For buy-nft (buyer), nullable for transfers
+    sender VARCHAR(255), -- For transfer
+    recipient VARCHAR(255), -- For transfer (or contract address for minting)
+    name VARCHAR(255), -- For buy-nft
+    amount DECIMAL(10,4), -- Unified for price (buy-nft) or amount (transfer)
+    mode VARCHAR(50), -- 'Purchase' for buy-nft, nullable for transfers
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Unified timestamp
+    tokenID VARCHAR(255), -- For buy-nft and transfer (if applicable)
+    tx_hash VARCHAR(255) UNIQUE, -- For transfer and minting confirmation
+    FOREIGN KEY (accountID) REFERENCES users(accountID) ON DELETE SET NULL
 );
