@@ -3,48 +3,64 @@ import { useParams } from "react-router-dom";
 import { Container, Typography, CardMedia, Button } from "@mui/material";
 import { ethers } from "ethers";
 import axios from "axios";
+import contractData from "../../../backend/build/contracts/MyNFT.json"; // ✅ Correct path
 
-const IPFS_BASE_URL = "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
-const CONTRACT_ADDRESS = "0x123456789abcdef";
-const ABI = [
-  // Define the ABI for your NFT contract
-  "function transferFrom(address from, address to, uint256 tokenId) external"
-];
+const CONTRACT_ADDRESS = "0x8B9E8451d03fF8A57a51bC83f7a8aDadE106E71C";
+const ABI = contractData.abi;
 
 const Market = () => {
   const { id } = useParams();
+  const tokenId = Number(id);
   const [nft, setNft] = useState(null);
   const [account, setAccount] = useState(null);
+  const [seller, setSeller] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchNFT = async () => {
+      setLoading(true);
       try {
-        const metadataUrl = `${IPFS_BASE_URL}/${id}.json`;
-        const imageUrl = `${IPFS_BASE_URL}/${id}.png`;
+        if (!window.ethereum) throw new Error("MetaMask is not installed");
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+        // ✅ Use `count()` instead of `totalMinted()`
+        const totalSupply = await contract.getTotalSupply();
+        if (tokenId >= totalSupply) throw new Error(`Token ID ${tokenId} does not exist.`);
+
+        const tokenURI = await contract.tokenURI(tokenId);
+        if (!tokenURI) throw new Error(`No metadata found for Token ID ${tokenId}`);
+
+        const ownerAddress = await contract.ownerOf(tokenId);
+        setSeller(ownerAddress);
+
+        const metadataUrl = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/");
         const response = await axios.get(metadataUrl);
+
         setNft({
-          id: id,
-          name: response.data.name || `NFT ${id}`,
+          id: tokenId,
+          name: response.data.name || `NFT ${tokenId}`,
           description: response.data.description || "No description provided.",
-          image: imageUrl,
-          price: 5, // Example price in ETH
-          tokenID: id,
+          image: response.data.image.replace("ipfs://", "https://ipfs.io/ipfs/"),
+          price: 5,
+          tokenID: tokenId,
           contractAddress: CONTRACT_ADDRESS,
           category: "Art",
         });
       } catch (error) {
-        console.error(`Error fetching NFT ${id}:`, error);
+        console.error(`Error fetching NFT ${tokenId}:`, error.message);
+      } finally {
+        setLoading(false);
       }
     };
-
     fetchNFT();
-  }, [id]);
+  }, [tokenId]);
 
   const connectMetaMask = async () => {
-    if (!window.ethereum) {
-      alert("MetaMask not detected!");
-      return;
-    }
+    if (!window.ethereum) return alert("MetaMask not detected!");
+    if (account) return;
+
     try {
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       setAccount(accounts[0]);
@@ -54,21 +70,26 @@ const Market = () => {
   };
 
   const buyNFT = async () => {
-    if (!nft || !account) return alert("Please connect MetaMask first");
+    if (!nft || !account || !seller) return alert("Please connect MetaMask first or wait for NFT to load.");
 
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(nft.contractAddress, ABI, signer);
-      const seller = "0xSellerAddressHere"; // Replace with actual seller address
 
+      // ✅ Approve transfer
+      const approveTx = await contract.approve(account, nft.tokenID);
+      await approveTx.wait();
+
+      // ✅ Transfer NFT
       const tx = await contract.transferFrom(seller, account, nft.tokenID);
       await tx.wait();
-      
+
+      // ✅ Save transaction details
       const txHash = tx.hash;
       const response = await axios.post("http://localhost:8081/buy-nft", {
         buyer: account,
-        seller: seller,
+        seller,
         amount: nft.price,
         token_id: nft.tokenID,
         tx_hash: txHash,
@@ -93,17 +114,25 @@ const Market = () => {
 
   return (
     <Container sx={{ mt: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
-      {!account && <Button variant="contained" onClick={connectMetaMask}>Connect MetaMask</Button>}
-      {nft ? (
+      {!account && (
+        <Button variant="contained" onClick={connectMetaMask}>
+          Connect MetaMask
+        </Button>
+      )}
+      {loading ? (
+        <Typography>Loading...</Typography>
+      ) : nft ? (
         <>
           <Typography variant="h4" sx={{ mb: 2 }}>{nft.name}</Typography>
           <CardMedia component="img" image={nft.image} alt={nft.name} sx={{ maxWidth: "500px", mb: 2 }} />
           <Typography variant="body1">Description: {nft.description}</Typography>
           <Typography variant="body1">Price: {nft.price} ETH</Typography>
-          <Button variant="contained" color="primary" onClick={buyNFT}>Buy Now</Button>
+          <Button variant="contained" color="primary" onClick={buyNFT} disabled={!account}>
+            Buy Now
+          </Button>
         </>
       ) : (
-        <Typography>Loading...</Typography>
+        <Typography>Error loading NFT data.</Typography>
       )}
     </Container>
   );
