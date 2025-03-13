@@ -11,15 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// External Routes
-const authRoutes = require("./scripts/auth.js").router;
-const walletRoutes = require("./routes/wallet");
-const loginRoutes = require("./routes/login");
-const transferRoutes = require("./routes/transfer");
-const buyNFTRoutes = require("./routes/buy-nft");
-const checkNFTOwnershipRoutes = require("./routes/check-nft-ownership");
-
-// PostgreSQL Connection
+// PostgreSQL Connection (Moved up)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false },
@@ -30,6 +22,15 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
 
 // Admin Wallet File
 const ADMIN_WALLET_FILE = "admin_wallet.txt";
+
+// External Routes (Initialized after pool)
+const authRoutes = require("./scripts/auth.js").router;
+const walletRoutes = require("./routes/wallet");
+const assetsRouter = require("./routes/assets")(pool); // Now pool is defined
+const loginRoutes = require("./routes/login");
+const transferRoutes = require("./routes/transfer");
+const buyNFTRoutes = require("./routes/buy-nft");
+const checkNFTOwnershipRoutes = require("./routes/check-nft-ownership");
 
 // Save Admin Wallet to File
 function saveAdminWallet(walletAddress) {
@@ -55,7 +56,7 @@ async function setupAdminWallet() {
   if (accounts.length < 1) return console.error("❌ No Ganache accounts found!");
 
   const newAdminWallet = extractAddress(accounts[0]); // e.g., 0x001d163d88fbf9Fc5505E29A053b820A2D26Ed1e
-  const dbResult = await pool.query("SELECT wallet_address FROM users WHERE accountid = 1");
+  const dbResult = await pool.query("SELECT wallet_address FROM users WHERE account_id = 1");
   const currentDbWallet = dbResult.rows.length ? extractAddress(dbResult.rows[0].wallet_address) : null;
 
   if (!currentDbWallet) {
@@ -63,9 +64,9 @@ async function setupAdminWallet() {
     console.log(`🔄 Creating Admin Wallet: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
     await pool.query(
-      `INSERT INTO users (accountid, username, email, password, wallet_address, created)
+      `INSERT INTO users (account_id, username, email, password, wallet_address, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
-       ON CONFLICT (accountid) DO NOTHING`,
+       ON CONFLICT (account_id) DO NOTHING`,
       [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
     );
   } else if (currentDbWallet !== newAdminWallet) {
@@ -73,7 +74,7 @@ async function setupAdminWallet() {
     console.log(`🔄 Updating Admin Wallet to: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
     await pool.query(
-      `UPDATE users SET wallet_address = $1 WHERE accountid = 1`,
+      `UPDATE users SET wallet_address = $1 WHERE account_id = 1`,
       [newAdminWallet]
     );
   } else {
@@ -91,6 +92,7 @@ app.use("/auth", authRoutes);
 app.use("/wallet", walletRoutes(pool, provider));
 app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/transfer", transferRoutes(provider, ethers, pool));
+app.use("/assets", assetsRouter); // Already initialized with pool
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
 

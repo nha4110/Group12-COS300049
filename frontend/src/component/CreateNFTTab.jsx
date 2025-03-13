@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Paper, Typography, TextField, Button } from "@mui/material";
 import { ethers } from "ethers";
 import { uploadToPinata } from "../api/pinataService";
 import { useNavigate } from "react-router-dom";
 import contractData from "../../../backend/build/contracts/MyNFT.json";
 
-const CONTRACT_ADDRESS = "0xA3e8472Eb803c5478F476175167b6c48Bf5eF530";
+const CONTRACT_ADDRESS = "0x84643357E0de364Acc9659021A1920362e1255D5";
 const ABI = contractData.abi;
+const FOLDER_NAME = "out";
 
 const CreateNFTTab = ({ walletAddress, web3 }) => {
   const navigate = useNavigate();
@@ -15,56 +16,80 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
   const [ipfsHash, setIpfsHash] = useState("");
   const [nftName, setNftName] = useState("");
   const [nftDescription, setNftDescription] = useState("");
+  const [nextTokenId, setNextTokenId] = useState(null);
+
+  useEffect(() => {
+    fetchNextTokenId();
+  }, []);
+
+  const fetchNextTokenId = async () => {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+      const totalSupply = await contract.getTotalSupply();
+      setNextTokenId(Number(totalSupply));
+    } catch (error) {
+      console.error("Error fetching next token ID:", error);
+      setNextTokenId(60); // Fallback
+    }
+  };
 
   const handleFileUpload = async () => {
     if (!selectedFile) {
       alert("Please select a file first.");
       return;
     }
+    if (!selectedFile.type.includes("image/png")) {
+      alert("Please upload a PNG file.");
+      return;
+    }
+
     setUploading(true);
     try {
-      const fileName = selectedFile.name;
-      const hash = await uploadToPinata(selectedFile, fileName);
+      const fileName = `${nextTokenId}.png`;
+      const hash = await uploadToPinata(selectedFile, fileName, FOLDER_NAME);
       if (hash) {
         setIpfsHash(hash);
-        alert(`Upload successful! IPFS Hash: ${hash}`);
+        alert(`Image uploaded successfully! IPFS Hash: ${hash}`);
       } else {
-        alert("Upload failed. Please try again.");
+        alert("Image upload failed. Please try again.");
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Upload failed.");
+      alert("Image upload failed.");
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   const mintNFT = async () => {
-    if (!ipfsHash || !nftName) {
-      alert("Please upload an image and provide a name for your NFT");
+    if (!ipfsHash || !nftName || !nextTokenId) {
+      alert("Please upload a PNG image, provide a name, and ensure token ID is loaded.");
       return;
     }
     if (!walletAddress) {
-      alert("Please connect your wallet first");
+      alert("Please connect your wallet first.");
       return;
     }
+
     try {
       const metadata = {
         name: nftName,
-        description: nftDescription,
+        description: nftDescription || "No description provided.",
         image: `ipfs://${ipfsHash}`,
       };
       const metadataBlob = new Blob([JSON.stringify(metadata)], { type: "application/json" });
-      const metadataFile = new File([metadataBlob], "metadata.json");
+      const metadataFile = new File([metadataBlob], `${nextTokenId}.json`);
 
-      const metadataHash = await uploadToPinata(metadataFile, "metadata.json");
+      const metadataHash = await uploadToPinata(metadataFile, `${nextTokenId}.json`, FOLDER_NAME);
       if (!metadataHash) throw new Error("Failed to upload metadata");
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-      const metadataURI = `ipfs://${metadataHash}`;
-      const tx = await contract.payToMint(walletAddress, metadataURI, {
+      const metadataURI = `ipfs://${metadataHash}`; // Use the metadata hash directly
+      const tx = await contract.payToMint(walletAddress, metadataURI, nextTokenId, {
         value: ethers.parseEther("0.05"),
       });
 
@@ -83,26 +108,36 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
         owner: walletAddress,
         tokenURI: metadataURI,
         name: nftName,
-        description: nftDescription,
+        description: nftDescription || "No description provided.",
         image: `ipfs://${ipfsHash}`,
       };
 
-      await fetch("/api/transactions", {
+      const token = localStorage.getItem("jwtToken");
+      await fetch(`${process.env.REACT_APP_BACKEND_URL || "http://localhost:8081"}/api/transactions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(transactionData),
       });
-      await fetch("/api/assets", {
+      await fetch(`${process.env.REACT_APP_BACKEND_URL || "http://localhost:8081"}/api/assets`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(assetData),
       });
 
       alert("NFT minted successfully!");
+      window.dispatchEvent(new Event("balanceUpdated"));
+      window.dispatchEvent(new Event("nftCacheUpdated")); // Trigger Home.jsx refresh
       setNftName("");
       setNftDescription("");
       setIpfsHash("");
       setSelectedFile(null);
+      setNextTokenId((prev) => prev + 1);
       navigate("/home");
     } catch (error) {
       console.error("Error minting NFT:", error);
@@ -129,8 +164,14 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
         value={nftDescription}
         onChange={(e) => setNftDescription(e.target.value)}
       />
-      <Typography variant="subtitle1" sx={{ mt: 2 }}>Upload NFT Image</Typography>
-      <input type="file" onChange={(e) => setSelectedFile(e.target.files[0])} />
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Upload NFT Image (PNG only)
+      </Typography>
+      <input
+        type="file"
+        accept="image/png"
+        onChange={(e) => setSelectedFile(e.target.files[0])}
+      />
       <Button
         variant="contained"
         color="primary"
@@ -143,14 +184,14 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
       {ipfsHash && (
         <>
           <Typography variant="body2" sx={{ mt: 2 }}>
-            Image Uploaded! IPFS Hash: {ipfsHash}
+            Image Uploaded! IPFS Hash: {ipfsHash} (Next ID: {nextTokenId})
           </Typography>
           <Button
             variant="contained"
             color="success"
             sx={{ mt: 2 }}
             onClick={mintNFT}
-            disabled={!nftName}
+            disabled={!nftName || !nextTokenId}
           >
             Mint NFT (0.05 ETH)
           </Button>

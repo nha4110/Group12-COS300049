@@ -12,7 +12,7 @@ const Profile = () => {
   const { state, dispatch } = useAuth();
   const navigate = useNavigate();
   const user = state.user;
-  const accountId = user?.accountid;
+  const accountId = user?.account_id;
 
   const [walletAddress, setWalletAddress] = useState("");
   const [balance, setBalance] = useState("Loading...");
@@ -20,9 +20,9 @@ const Profile = () => {
   const [web3, setWeb3] = useState(null);
 
   useEffect(() => {
-    if (user && user.walletAddress) {
-      setWalletAddress(user.walletAddress);
-      fetchBalance(user.walletAddress);
+    if (user && user.wallet_address) {
+      setWalletAddress(user.wallet_address);
+      fetchBalance(user.wallet_address);
     }
     if (window.ethereum) {
       setWeb3(new Web3(window.ethereum));
@@ -39,14 +39,8 @@ const Profile = () => {
         setBalance("Failed to fetch balance");
       }
     } catch (error) {
-      console.error("Error fetching balance via API:", error);
-      if (web3) {
-        const balanceWei = await web3.eth.getBalance(walletAddress);
-        const balanceEth = web3.utils.fromWei(balanceWei, "ether");
-        setBalance(balanceEth);
-      } else {
-        setBalance("Failed to fetch balance");
-      }
+      console.error("Error fetching balance:", error);
+      setBalance("Failed to fetch balance");
     }
   };
 
@@ -83,7 +77,7 @@ const Profile = () => {
           walletAddress={walletAddress}
           web3={web3}
           fetchBalance={fetchBalance}
-          balance={balance} // Pass balance as a prop
+          balance={balance}
         />
       )}
       {currentTab === "Create NFT" && (
@@ -96,8 +90,6 @@ const Profile = () => {
         sx={{ marginTop: 3 }}
         onClick={() => {
           dispatch({ type: "LOGOUT" });
-          localStorage.removeItem("user_wallet");
-          localStorage.removeItem("username");
           navigate("/home");
         }}
       >

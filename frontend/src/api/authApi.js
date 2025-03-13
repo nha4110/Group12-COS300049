@@ -1,24 +1,25 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8081"; // Ensure this is correct
+const API_URL = "http://localhost:8081"; // Matches your backend
 
-// ✅ Signup Function - Now Returns Wallet Address
+// Signup Function
 export const signup = async (username, email, password) => {
   try {
     const response = await axios.post(`${API_URL}/signup`, { username, email, password });
 
     if (response.data.success) {
-      localStorage.setItem("wallet", response.data.wallet_address); // ✅ Store wallet address
+      // Backend returns walletAddress, store it consistently
+      localStorage.setItem("wallet_address", response.data.walletAddress);
     }
 
     return response.data;
   } catch (error) {
     console.error("Signup error:", error.response?.data || error.message);
-    return { success: false, message: error.response?.data?.error || "Signup failed" };
+    return { success: false, message: error.response?.data?.message || "Signup failed" };
   }
 };
 
-// ✅ Login Function - Stores Wallet Address
+// Login Function
 export const login = async (username, password) => {
   try {
     const response = await axios.post(`${API_URL}/login`, { username, password });
@@ -26,12 +27,12 @@ export const login = async (username, password) => {
     if (response.data.token) {
       const userData = {
         ...response.data.user,
-        walletAddress: response.data.user.wallet_address // ✅ Ensure wallet is stored
+        wallet_address: response.data.user.wallet_address, // Match Login.jsx expectation
       };
 
       localStorage.setItem("jwtToken", response.data.token);
       localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("wallet", userData.walletAddress);
+      localStorage.setItem("wallet_address", userData.wallet_address); // Consistent key
 
       return { success: true, token: response.data.token, user: userData };
     }
@@ -39,28 +40,31 @@ export const login = async (username, password) => {
     return { success: false, message: "Invalid login response" };
   } catch (error) {
     console.error("Login error:", error.response?.data || error.message);
-    return { success: false, message: error.response?.data?.error || "Login failed" };
+    return { success: false, message: error.response?.data?.message || "Login failed" };
   }
 };
 
-
-// ✅ Fetch Wallet Address
+// Fetch Wallet Address (Adjusted to match a realistic endpoint)
 export const getWalletAddress = async () => {
   const token = localStorage.getItem("jwtToken");
   if (!token) return { success: false, message: "No token found" };
 
   try {
-    const response = await axios.get(`${API_URL}/wallet`, {
-      headers: { Authorization: `Bearer ${token}` }
+    // Assuming /wallet/address/:walletAddress or similar exists
+    const walletAddress = localStorage.getItem("wallet_address");
+    const response = await axios.get(`${API_URL}/wallet/address/${walletAddress}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
   } catch (error) {
     console.error("Wallet fetch error:", error.response?.data || error.message);
-    return { success: false, message: error.response?.data?.error || "Failed to get wallet" };
+    return { success: false, message: error.response?.data?.message || "Failed to get wallet" };
   }
 };
 
+// Logout Function
 export const logout = () => {
-  localStorage.removeItem("token");
+  localStorage.removeItem("jwtToken"); // Match key used elsewhere
   localStorage.removeItem("user");
+  localStorage.removeItem("wallet_address"); // Consistent with login/signup
 };
