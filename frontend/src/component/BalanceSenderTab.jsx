@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
-  const [gasPrice] = useState("0.000000002"); // Fixed for simplicity
+  const [gasPrice] = useState("0.000000002");
   const [balanceAfter, setBalanceAfter] = useState("");
 
   useEffect(() => {
@@ -55,22 +55,26 @@ const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
             gas: "0.000055",
             hash: hash,
             date: new Date().toISOString(),
+            type: "balanceTransfer",
           };
-          await fetch("/api/transactions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newTransaction),
-          });
+
+          // Save to localStorage
+          const existingTransactions = JSON.parse(localStorage.getItem("balanceTransactions")) || [];
+          localStorage.setItem("balanceTransactions", JSON.stringify([...existingTransactions, newTransaction]));
+
+          // Wait briefly, update balance, then refresh page
           setTimeout(() => {
-            fetchBalance(walletAddress);
-            window.location.reload();
+            fetchBalance(walletAddress); // Update balance before refresh
+            setRecipientAddress("");
+            setAmount("");
+            window.location.reload(); // Full page refresh (Ctrl + R equivalent)
           }, 3000);
         })
         .on("error", (error) => {
           alert(`Transaction failed: ${error.message}`);
         });
     } catch (error) {
-      alert(`Transaction fFailed: ${error.message}`);
+      alert(`Transaction Failed: ${error.message}`);
     }
   };
 

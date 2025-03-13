@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// PostgreSQL Connection (Moved up)
+// PostgreSQL Connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false },
@@ -23,10 +23,10 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
 // Admin Wallet File
 const ADMIN_WALLET_FILE = "admin_wallet.txt";
 
-// External Routes (Initialized after pool)
+// External Routes
 const authRoutes = require("./scripts/auth.js").router;
 const walletRoutes = require("./routes/wallet");
-const assetsRouter = require("./routes/assets")(pool); // Now pool is defined
+const assetsRouter = require("./routes/assets")(pool);
 const loginRoutes = require("./routes/login");
 const transferRoutes = require("./routes/transfer");
 const buyNFTRoutes = require("./routes/buy-nft");
@@ -49,18 +49,33 @@ function extractAddress(wallet) {
   return null;
 }
 
+// Assign Next Available Wallet (Moved here for reuse)
+async function assignNextAvailableWallet() {
+  const accounts = await provider.listAccounts();
+  for (const account of accounts) {
+    const address = extractAddress(account);
+    const exists = await pool.query(
+      "SELECT EXISTS(SELECT 1 FROM users WHERE wallet_address = $1) AS exists",
+      [address]
+    );
+    if (!exists.rows[0].exists) {
+      return address;
+    }
+  }
+  return null; // No available wallets
+}
+
 // Setup Admin Wallet
 async function setupAdminWallet() {
   const storedWallet = loadAdminWallet();
   const accounts = await provider.listAccounts();
   if (accounts.length < 1) return console.error("❌ No Ganache accounts found!");
 
-  const newAdminWallet = extractAddress(accounts[0]); // e.g., 0x001d163d88fbf9Fc5505E29A053b820A2D26Ed1e
+  const newAdminWallet = extractAddress(accounts[0]);
   const dbResult = await pool.query("SELECT wallet_address FROM users WHERE account_id = 1");
   const currentDbWallet = dbResult.rows.length ? extractAddress(dbResult.rows[0].wallet_address) : null;
 
   if (!currentDbWallet) {
-    // No admin exists, create it
     console.log(`🔄 Creating Admin Wallet: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
     await pool.query(
@@ -70,7 +85,6 @@ async function setupAdminWallet() {
       [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
     );
   } else if (currentDbWallet !== newAdminWallet) {
-    // Update admin wallet if it changed
     console.log(`🔄 Updating Admin Wallet to: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
     await pool.query(
@@ -84,7 +98,35 @@ async function setupAdminWallet() {
 
 // Check and Update Wallets for Users
 async function checkAndUpdateWallets() {
-  console.log("✅ All user wallets are assumed correct (managed client-side).");
+  try {
+    // Fetch all users without a wallet_address
+    const result = await pool.query(
+      "SELECT username FROM users WHERE wallet_address IS NULL OR wallet_address = ''"
+    );
+    const usersWithoutWallets = result.rows;
+
+    if (usersWithoutWallets.length === 0) {
+      console.log("✅ All users have wallet addresses.");
+      return;
+    }
+
+    console.log(`🔍 Found ${usersWithoutWallets.length} users without wallet addresses.`);
+
+    for (const user of usersWithoutWallets) {
+      const assignedWallet = await assignNextAvailableWallet();
+      if (!assignedWallet) {
+        console.error("❌ No available wallets left in Ganache to assign.");
+        break;
+      }
+      await pool.query(
+        "UPDATE users SET wallet_address = $1 WHERE username = $2",
+        [assignedWallet, user.username]
+      );
+      console.log(`🎉 Assigned wallet ${assignedWallet} to user ${user.username}`);
+    }
+  } catch (error) {
+    console.error("❌ Error in checkAndUpdateWallets:", error);
+  }
 }
 
 // Mount Routes with Dependencies
@@ -92,35 +134,12 @@ app.use("/auth", authRoutes);
 app.use("/wallet", walletRoutes(pool, provider));
 app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/transfer", transferRoutes(provider, ethers, pool));
-app.use("/assets", assetsRouter); // Already initialized with pool
+app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
 
-// Signup Route (Inline)
-app.post("/signup", async (req, res) => {
-  const { username, email, password, walletAddress } = req.body;
-
-  try {
-    const existingUser = await pool.query(
-      "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 OR email = $2 OR wallet_address = $3) AS exists",
-      [username, email, walletAddress]
-    );
-    if (existingUser.rows[0].exists) {
-      return res.status(400).json({ success: false, message: "Username, email, or wallet address already exists." });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await pool.query(
-      "INSERT INTO users (username, email, password, wallet_address) VALUES ($1, $2, $3, $4)",
-      [username, email, hashedPassword, walletAddress]
-    );
-
-    res.json({ success: true, message: "User registered successfully.", walletAddress });
-  } catch (error) {
-    console.error("❌ Signup Error:", error);
-    res.status(500).json({ success: false, message: "Database error." });
-  }
-});
+// Signup Route (Moved to separate file, but included here for completeness)
+app.post("/signup", require("./routes/signup")(pool, bcrypt, assignNextAvailableWallet));
 
 // Run Admin Wallet Setup and Check Users on Server Start
 async function initialize() {
