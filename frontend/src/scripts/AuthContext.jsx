@@ -11,8 +11,8 @@ const authReducer = (state, action) => {
       return { ...state, user: action.payload };
     case "LOGOUT":
       localStorage.removeItem("user");
-      localStorage.removeItem("jwtToken"); // Updated to match
-      localStorage.removeItem("wallet_address"); // Updated to match
+      localStorage.removeItem("jwtToken");
+      localStorage.removeItem("wallet_address");
       return { ...state, user: null };
     default:
       return state;
