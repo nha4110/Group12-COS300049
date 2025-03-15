@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from "./scripts/AuthContext";
 import { BalanceProvider } from "./scripts/BalanceContext";
 import SearchAppBar from "./component/AppBar";
 import Footer from "./component/Footer";
-
+import About from "./pages/About";
 
 // Lazy-loaded pages
 const Home = React.lazy(() => import("./pages/Home"));
@@ -15,6 +15,7 @@ const Profile = React.lazy(() => import("./pages/Profile"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const History = React.lazy(() => import("./pages/History"));
 const Market = React.lazy(() => import("./pages/Market"));
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +40,7 @@ function App() {
                                 <Route path="/market/:collectionName" element={<Market />} />
                                 <Route path="/History" element={<History />} />
                                 <Route path="*" element={<NotFound />} />
+                                <Route path="/about" element={<About />} />
                             </Routes>
                         </Suspense>
 

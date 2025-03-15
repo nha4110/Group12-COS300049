@@ -29,58 +29,32 @@ export default function Footer() {
                 {/* Main Footer Grid Layout */}
                 <Grid container spacing={3} justifyContent="center">
                     {/* Left Section - About */}
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={12} sm={4}>
                         <Typography variant="h6">NFT Marketplace</Typography>
                         <Typography variant="body2">
                             Empowering blockchain technology for a decentralized future.
                         </Typography>
-                        <Link 
-                            href="/about" 
-                            color="inherit" 
-                            underline="hover"
-                            display="block"
-                        >
-                            <InfoIcon fontSize="small" /> About Us
-                        </Link>
                     </Grid>
 
                     {/* Middle Section - Links */}
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={12} sm={4}>
                         <Typography variant="h6">Resources</Typography>
-                        <Link 
-                            href="https://github.com/your-repo-link" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            color="inherit"
-                            display="block"
-                            underline="hover"
-                        >
+                        <Link href="/about" color="inherit" display="block" underline="hover">
+                            <InfoIcon fontSize="small" /> About Us
+                        </Link>
+                        <Link href="https://github.com/your-repo-link" target="_blank" color="inherit" display="block" underline="hover">
                             <GitHubIcon fontSize="small" /> GitHub Repository
                         </Link>
-                        <Link 
-                            href="https://docs.google.com/document/d/your-doc-link" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            color="inherit"
-                            display="block"
-                            underline="hover"
-                        >
+                        <Link href="https://docs.google.com/document/d/your-doc-link" target="_blank" color="inherit" display="block" underline="hover">
                             <ArticleIcon fontSize="small" /> Project Documentation
                         </Link>
-                        <Link 
-                            href="https://www.youtube.com/watch?v=your-video-link" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            color="inherit"
-                            display="block"
-                            underline="hover"
-                        >
+                        <Link href="https://www.youtube.com/watch?v=your-video-link" target="_blank" color="inherit" display="block" underline="hover">
                             <YouTubeIcon fontSize="small" /> Demo Video
                         </Link>
                     </Grid>
 
                     {/* Right Section - Contributors */}
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={12} sm={4}>
                         <Typography variant="h6">Contributors</Typography>
                         <Typography variant="body2">
                             Lu Nhat Hoang, Nguyen Ngoc Huy Hoang, Chung Dung Toan, Le Anh Tuan
