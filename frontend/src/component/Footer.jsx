@@ -5,9 +5,12 @@ Lu Nhat Hoang - 105234956
 */}
 
 import React from "react";
-import { Box, Container, Typography } from "@mui/material";
+import { Box, Container, Typography, Grid, Link, Divider } from "@mui/material";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import GitHubIcon from "@mui/icons-material/GitHub";
+import ArticleIcon from "@mui/icons-material/Article";
+import InfoIcon from "@mui/icons-material/Info";
 
-// Footer Component
 export default function Footer() {
     return (
         <Box 
@@ -15,27 +18,82 @@ export default function Footer() {
             sx={{ 
                 bgcolor: "primary.dark",
                 color: "white", 
-                py: 2, // Adds vertical padding 
-                textAlign: "center", // Centers text alignment
-                mt: { xs: 10, sm: 25 }, // Increases top margin on larger screens
-                px: { xs: 2, sm: 4 }, // Adds responsive horizontal padding
-                wordWrap: "break-word", // Ensures text doesn't overflow
+                py: 4, 
+                textAlign: "center",
+                mt: { xs: 10, sm: 25 },
+                px: { xs: 2, sm: 4 },
+                wordWrap: "break-word",
             }}
         >
             <Container>
-                {/* Displays the current year dynamically */}
-                <Typography variant="body2">
-                    © {new Date().getFullYear()} NFT Marketplace
-                </Typography>
+                {/* Main Footer Grid Layout */}
+                <Grid container spacing={3} justifyContent="center">
+                    {/* Left Section - About */}
+                    <Grid item xs={12} sm={3}>
+                        <Typography variant="h6">NFT Marketplace</Typography>
+                        <Typography variant="body2">
+                            Empowering blockchain technology for a decentralized future.
+                        </Typography>
+                        <Link 
+                            href="/about" 
+                            color="inherit" 
+                            underline="hover"
+                            display="block"
+                        >
+                            <InfoIcon fontSize="small" /> About Us
+                        </Link>
+                    </Grid>
 
-                {/* Course name for assignment reference */}
-                <Typography variant="body2">
-                    Assignment for Blockchain Technology COS300049
-                </Typography>
+                    {/* Middle Section - Links */}
+                    <Grid item xs={12} sm={3}>
+                        <Typography variant="h6">Resources</Typography>
+                        <Link 
+                            href="https://github.com/your-repo-link" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            color="inherit"
+                            display="block"
+                            underline="hover"
+                        >
+                            <GitHubIcon fontSize="small" /> GitHub Repository
+                        </Link>
+                        <Link 
+                            href="https://docs.google.com/document/d/your-doc-link" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            color="inherit"
+                            display="block"
+                            underline="hover"
+                        >
+                            <ArticleIcon fontSize="small" /> Project Documentation
+                        </Link>
+                        <Link 
+                            href="https://www.youtube.com/watch?v=your-video-link" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            color="inherit"
+                            display="block"
+                            underline="hover"
+                        >
+                            <YouTubeIcon fontSize="small" /> Demo Video
+                        </Link>
+                    </Grid>
 
-                {/* Contributors' names */}
+                    {/* Right Section - Contributors */}
+                    <Grid item xs={12} sm={3}>
+                        <Typography variant="h6">Contributors</Typography>
+                        <Typography variant="body2">
+                            Lu Nhat Hoang, Nguyen Ngoc Huy Hoang, Chung Dung Toan, Le Anh Tuan
+                        </Typography>
+                    </Grid>
+                </Grid>
+
+                {/* Horizontal Divider */}
+                <Divider sx={{ my: 3, bgcolor: "white" }} />
+
+                {/* Bottom Section */}
                 <Typography variant="body2">
-                    Created by Lu Nhat Hoang, Nguyen Ngoc Huy Hoang, Chung Dung Toan
+                    © {new Date().getFullYear()} NFT Marketplace | Blockchain Technology COS30049
                 </Typography>
             </Container>
         </Box>
