@@ -99,6 +99,7 @@ async function checkAndUpdateWallets() {
 // Middleware for JWT Authentication
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
+  console.log("Authorization header:", req.headers.authorization);
   if (!token) return res.status(401).json({ success: false, message: "No token provided" });
 
   try {
@@ -107,12 +108,21 @@ const authenticateToken = (req, res, next) => {
     req.user = {
       accountId: decoded.account_id || decoded.id,
       username: decoded.username,
-      walletAddress: decoded.wallet_address || decoded.walletAddress || decoded.wallet // Add support for 'wallet'
+      walletAddress: decoded.wallet_address || decoded.walletAddress || decoded.wallet || null
     };
+    if (!req.user.walletAddress) {
+      console.warn("Wallet address not found in JWT payload:", decoded);
+    }
     console.log("req.user set to:", JSON.stringify(req.user, null, 2));
     next();
   } catch (error) {
-    console.error("JWT Verification Error:", error.message);
+    console.error("JWT Verification Error:", error.name, error.message, error.stack);
+    if (error.name === "TokenExpiredError") {
+      return res.status(403).json({ success: false, message: "Token expired. Please log in again." });
+    }
+    if (error.name === "JsonWebTokenError") {
+      return res.status(403).json({ success: false, message: "Invalid token format." });
+    }
     res.status(403).json({ success: false, message: "Invalid token" });
   }
 };
@@ -124,7 +134,7 @@ app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
-app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool));
+app.use("/transfer", authenticateToken, transferRoutes(pool)); // Simplified to pass only pool
 
 // Signup Route
 app.post("/signup", async (req, res) => {
@@ -212,12 +222,19 @@ app.post("/api/collections", async (req, res) => {
 // NFT Transactions Route
 app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
   try {
+    console.log("Starting /api/nft-transactions endpoint");
     const walletAddress = req.user.walletAddress;
     if (!walletAddress) {
+      console.log("Wallet address missing in req.user:", req.user);
       return res.status(400).json({ success: false, message: "Wallet address not provided in token" });
     }
     const normalizedWalletAddress = walletAddress.toLowerCase();
     console.log(`Fetching NFT transactions for wallet: ${normalizedWalletAddress}`);
+
+    // Test database connection
+    const testConnection = await pool.query("SELECT 1");
+    console.log("Database connection test successful:", testConnection.rows);
+
     const result = await pool.query(
       `SELECT 
          transaction_id,
