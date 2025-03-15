@@ -5,14 +5,14 @@ import { Box, Container, Typography, Grid, Card, CardContent, Avatar } from "@mu
 const members = [
     {
         name: "Lu Nhat Hoang",
-        role: "Full-Stack Developer",
-        description: "Expert in smart contracts and backend development. Built the blockchain integration for our marketplace.",
+        role: "Backend developer",
+        description: "Has constructed the functionalities of this website, ensuring that everything runs smoothly",
         avatar: "https://via.placeholder.com/100"
     },
     {
         name: "Nguyen Ngoc Huy Hoang",
         role: "Frontend Developer",
-        description: "Specializes in UI/UX design and React development. Designed the user-friendly interface of our marketplace.",
+        description: "Focuses on the interfaces and design of the website",
         avatar: "https://via.placeholder.com/100"
     },
     {
@@ -23,8 +23,8 @@ const members = [
     },
     {
         name: "Le Anh Tuan",
-        role: "Project Manager",
-        description: "Oversaw the project's timeline and coordinated team efforts to ensure smooth development.",
+        role: "Backend Tester",
+        description: "Focuses on running the functions behind the website",
         avatar: "https://via.placeholder.com/100"
     },
 ];
