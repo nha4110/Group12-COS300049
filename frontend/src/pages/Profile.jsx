@@ -1,28 +1,43 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Paper, Button, Tabs, Tab, Box } from "@mui/material";
+import {
+  Container,
+  Typography,
+  Paper,
+  Button,
+  TextField,
+  Tabs,
+  Tab,
+  Box,
+} from "@mui/material";
 import { getWalletBalance } from "../api/wallet";
+import { uploadToPinata } from "../api/pinataService";
 import { useAuth } from "../scripts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { ethers } from "ethers";
 import Web3 from "web3";
-import NFTCollectionTab from "../component/NFTCollectionTab";
-import BalanceSenderTab from "../component/BalanceSenderTab";
-import CreateNFTTab from "../component/CreateNFTTab";
 
 const Profile = () => {
   const { state, dispatch } = useAuth();
   const navigate = useNavigate();
   const user = state.user;
-  const accountId = user?.account_id;
+  const accountId = user?.accountId; // Adjust based on your actual user object key
 
   const [walletAddress, setWalletAddress] = useState("");
   const [balance, setBalance] = useState("Loading...");
+  const [recipientAddress, setRecipientAddress] = useState("");
+  const [amount, setAmount] = useState("");
+  const [gasPrice] = useState("0.000000002"); // Fixed for simplicity
+  const [balanceAfter, setBalanceAfter] = useState("");
   const [currentTab, setCurrentTab] = useState("NFT Collection");
   const [web3, setWeb3] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [ipfsHash, setIpfsHash] = useState("");
 
   useEffect(() => {
-    if (user && user.wallet_address) {
-      setWalletAddress(user.wallet_address);
-      fetchBalance(user.wallet_address);
+    if (user && user.walletAddress) { // Adjust key based on your user object
+      setWalletAddress(user.walletAddress);
+      fetchBalance(user.walletAddress);
     }
     if (window.ethereum) {
       setWeb3(new Web3(window.ethereum));
@@ -44,8 +59,77 @@ const Profile = () => {
     }
   };
 
+  const sendDirectETH = async () => {
+    try {
+      if (!ethers.isAddress(recipientAddress)) {
+        alert("Invalid recipient address.");
+        return;
+      }
+      if (!web3) {
+        alert("Please install MetaMask or another web3 provider.");
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const senderAddress = accounts[0];
+      const amountWei = web3.utils.toWei(amount, "ether");
+
+      const transactionObject = {
+        from: senderAddress,
+        to: recipientAddress,
+        value: amountWei,
+        gas: 21000,
+      };
+
+      web3.eth
+        .sendTransaction(transactionObject)
+        .on("transactionHash", (hash) => {
+          alert(`Transaction successful! TX Hash: ${hash}`);
+          fetchBalance(walletAddress);
+        })
+        .on("error", (error) => {
+          alert(`Transaction failed: ${error.message}`);
+        });
+    } catch (error) {
+      alert(`Transaction failed: ${error.message}`);
+    }
+  };
+
   const handleTabChange = (event, newTab) => {
     setCurrentTab(newTab);
+  };
+
+  useEffect(() => {
+    if (balance && amount && gasPrice && !isNaN(balance) && !isNaN(amount)) {
+      const balanceNum = parseFloat(balance);
+      const amountNum = parseFloat(amount);
+      const gasNum = parseFloat(gasPrice);
+      const newBalance = balanceNum - amountNum - gasNum;
+      setBalanceAfter(newBalance.toFixed(18));
+    } else {
+      setBalanceAfter("");
+    }
+  }, [balance, amount, gasPrice]);
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      alert("Please select a file first.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fileName = selectedFile.name;
+      const ipfsHash = await uploadToPinata(selectedFile, fileName);
+      if (ipfsHash) {
+        setIpfsHash(ipfsHash);
+        alert(`Upload successful! IPFS Hash: ${ipfsHash}`);
+      } else {
+        alert("Upload failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Upload failed.");
+    }
+    setUploading(false);
   };
 
   if (!user) {
@@ -67,21 +151,78 @@ const Profile = () => {
         <Tabs value={currentTab} onChange={handleTabChange} centered>
           <Tab label="NFT Collection" value="NFT Collection" />
           <Tab label="Balance Sender" value="Balance Sender" />
-          <Tab label="Create NFT" value="Create NFT" />
+          <Tab label="Upload" value="Upload" />
         </Tabs>
       </Box>
 
-      {currentTab === "NFT Collection" && <NFTCollectionTab />}
-      {currentTab === "Balance Sender" && (
-        <BalanceSenderTab
-          walletAddress={walletAddress}
-          web3={web3}
-          fetchBalance={fetchBalance}
-          balance={balance}
-        />
+      {currentTab === "NFT Collection" && (
+        <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+          <Typography variant="h6">NFT Collection (Placeholder)</Typography>
+          {/* Add NFT collection logic here */}
+        </Paper>
       )}
-      {currentTab === "Create NFT" && (
-        <CreateNFTTab walletAddress={walletAddress} web3={web3} />
+
+      {currentTab === "Balance Sender" && (
+        <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+          <Typography variant="h6">Send ETH (Direct)</Typography>
+          <TextField
+            label="Your Wallet Address"
+            fullWidth
+            margin="normal"
+            value={walletAddress}
+            InputProps={{ readOnly: true }}
+          />
+          <TextField
+            label="Recipient Address"
+            fullWidth
+            margin="normal"
+            value={recipientAddress}
+            onChange={(e) => setRecipientAddress(e.target.value)}
+          />
+          <TextField
+            label="Amount (ETH)"
+            fullWidth
+            margin="normal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          {balanceAfter && (
+            <Typography variant="body1" sx={{ marginTop: 2 }}>
+              Balance After Send: {balanceAfter} ETH
+            </Typography>
+          )}
+          <Button variant="contained" color="primary" onClick={sendDirectETH}>
+            Send
+          </Button>
+        </Paper>
+      )}
+
+      {currentTab === "Upload" && (
+        <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
+          <Typography variant="h6">Upload File to IPFS</Typography>
+          <input type="file" onChange={(eçim) => setSelectedFile(e.target.files[0])} />
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ marginTop: 2 }}
+            onClick={handleFileUpload}
+            disabled={uploading}
+          >
+            {uploading ? "Uploading..." : "Upload"}
+          </Button>
+          {ipfsHash && (
+            <Typography variant="body1" sx={{ marginTop: 2 }}>
+              IPFS Hash:{" "}
+              <a
+                href={`https://gateway.pinata.cloud/ipfs/${ipfsHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {ipfsHash}
+              </a>
+            </Typography>
+          )}
+        </Paper>
       )}
 
       <Button
@@ -90,7 +231,9 @@ const Profile = () => {
         sx={{ marginTop: 3 }}
         onClick={() => {
           dispatch({ type: "LOGOUT" });
-          navigate("/home");
+          localStorage.removeItem("user_wallet");
+          localStorage.removeItem("username");
+          navigate("/login");
         }}
       >
         Logout

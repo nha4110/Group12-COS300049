@@ -30,7 +30,7 @@ const assetsRouter = require("./routes/assets")(pool);
 const loginRoutes = require("./routes/login");
 const buyNFTRoutes = require("./routes/buy-nft");
 const checkNFTOwnershipRoutes = require("./routes/check-nft-ownership");
-const transferRoutes = require("./routes/transfer");
+const transferRoutes = require("./routes/transfer"); // Ensure this matches the file name
 
 // Save Admin Wallet to File
 function saveAdminWallet(walletAddress) {
@@ -103,19 +103,10 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
-    console.log("Decoded JWT in authenticateToken:", JSON.stringify(decoded, null, 2));
-    req.user = {
-      accountId: decoded.account_id || decoded.id,
-      username: decoded.username,
-      walletAddress: decoded.wallet_address || decoded.walletAddress // Check both variants
-    };
-    console.log("req.user set to:", JSON.stringify(req.user, null, 2));
-    if (!req.user.walletAddress) {
-      console.warn("Warning: walletAddress is missing from JWT payload");
-    }
+    req.user = decoded;
     next();
   } catch (error) {
-    console.error("JWT Verification Error:", error.message);
+    console.error("JWT Verification Error:", error);
     res.status(403).json({ success: false, message: "Invalid token" });
   }
 };
@@ -127,7 +118,7 @@ app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
-app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool));
+app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool)); // Mount /transfer route
 
 // Signup Route
 app.post("/signup", async (req, res) => {
@@ -157,7 +148,7 @@ app.post("/signup", async (req, res) => {
 
     res.json({ success: true, message: "User registered successfully.", walletAddress });
   } catch (error) {
-    console.error("❌ Signup Error:", error.message);
+    console.error("❌ Signup Error:", error);
     res.status(500).json({ success: false, message: "Database error" });
   }
 });
@@ -173,7 +164,7 @@ app.get("/api/collections", async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error("Error fetching collections:", error.message);
+    console.error("Error fetching collections:", error);
     res.status(500).json({ success: false, message: "Database error" });
   }
 });
@@ -187,7 +178,7 @@ app.get("/api/collections/:category", async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error fetching collection:", error.message);
+    console.error("Error fetching collection:", error);
     res.status(500).json({ success: false, message: "Database error" });
   }
 });
@@ -201,52 +192,15 @@ app.post("/api/collections", async (req, res) => {
     );
     res.json({ success: true, message: "Collection created" });
   } catch (error) {
-    console.error("Error creating collection:", error.message);
+    console.error("Error creating collection:", error);
     res.status(500).json({ success: false, message: "Database error" });
-  }
-});
-
-// NFT Transactions Route
-app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
-  try {
-    const walletAddress = req.user.walletAddress.toLowerCase(); // Normalize to match DB
-    console.log(`Fetching NFT transactions for wallet: ${walletAddress}`);
-    const result = await pool.query(
-      `SELECT 
-         transaction_id,
-         account_id,
-         sender_address AS "from",
-         recipient_address AS "to",
-         token_id,
-         nft_name,
-         amount_eth AS amount,
-         transaction_type,
-         contract_address,
-         tx_hash,
-         created_at AS date
-       FROM transactions
-       WHERE (sender_address = $1 OR recipient_address = $1)
-         AND token_id IS NOT NULL
-       ORDER BY created_at DESC`,
-      [walletAddress]
-    );
-    console.log(`NFT transactions fetched: ${result.rows.length} records`, JSON.stringify(result.rows, null, 2));
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching NFT transactions:", error.message, error.stack);
-    res.status(500).json({ success: false, message: `Database error: ${error.message}` });
   }
 });
 
 // Run Admin Wallet Setup and Check Users on Server Start
 async function initialize() {
-  console.log("✅ Starting server without resetting users table.");
-  try {
-    await setupAdminWallet();
-    await checkAndUpdateWallets();
-  } catch (error) {
-    console.error("❌ Initialization Error:", error.message);
-  }
+  await setupAdminWallet();
+  await checkAndUpdateWallets();
 }
 
 initialize();

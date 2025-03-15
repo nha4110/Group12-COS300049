@@ -291,7 +291,6 @@ const Market = () => {
 
       alert("NFT minted and recorded successfully!");
       window.dispatchEvent(new Event("balanceUpdated"));
-      window.dispatchEvent(new Event("nftTransactionUpdated")); // New event to trigger refresh
     } catch (error) {
       console.error("Minting error:", error);
       if (error.code === "CALL_EXCEPTION") {
@@ -393,4 +392,4 @@ const Market = () => {
   );
 };
 
-export default Market;  
+export default Market;
