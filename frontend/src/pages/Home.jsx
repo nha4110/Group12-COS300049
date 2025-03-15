@@ -1,212 +1,171 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { Container, Button, Typography, CardMedia, Grid, Card, CardContent, CircularProgress, Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { Container, Box, Grid, Card, CardContent, CardMedia, Typography, Button, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import { styled } from "@mui/material/styles";
 import axios from "axios";
 
-const IPFS_BASE_URL = "https://ipfs.io/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
-
-const SearchBarWrapper = styled(Box)({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginTop: "-20px",
-  marginBottom: "20px",
-  gap: "10px",
-  background: "white",
-});
-
-const SearchBox = styled("div")({
-  display: "flex",
-  alignItems: "center",
-  backgroundColor: "white",
-  borderRadius: "30px",
-  padding: "12px 20px",
-  width: "60%",
-  maxWidth: "600px",
-  boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.2)",
-  border: "2px solid white",
-});
-
-const StyledInputBase = styled("input")({
-  flex: 1,
-  color: "black",
-  paddingLeft: "10px",
-  fontSize: "16px",
-});
+const BACKEND_URL = "http://localhost:8081";
+const PINATA_GATEWAY = "https://gray-magic-tortoise-619.mypinata.cloud/ipfs/";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [nfts, setNfts] = useState([]);
-  const nftsRef = useRef(null); // Ref for the NFT grid
-  const [colorFilter, setColorFilter] = useState("");
-  const [sortOrder, setSortOrder] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [account, setAccount] = useState(null); // MetaMask account
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [loggedInWallet, setLoggedInWallet] = useState(null); // Local storage wallet
 
   useEffect(() => {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      if (args[0] && args[0].includes && args[0].includes("404")) {
-        return;
-      }
-      originalConsoleError(...args);
-    };
+    // Check localStorage for wallet_address
+    const wallet = localStorage.getItem("wallet_address");
+    setLoggedInWallet(wallet);
 
-    const fetchNFTs = async () => {
-      let loadedNFTs = [];
-      let i = 0;
-
-      while (true) {
-        try {
-          const metadataUrl = `${IPFS_BASE_URL}/${i}.json`;
-          const response = await axios.get(metadataUrl);
-
-          loadedNFTs.push({
-            id: i,
-            name: response.data.name || `NFT ${i}`,
-            image: `${IPFS_BASE_URL}/${i}.png`,
-            color: response.data.attributes?.find(
-              (attr) => attr.trait_type === "Background"
-            )?.value || "Unknown",
-            price: 5, // All NFTs have a price of 5 ETH
-          });
-
-          i++;
-        } catch (error) {
-          if (error.response && error.response.status === 404) {
-            console.log(`✅ No more NFTs found at ID ${i}. Stopping fetch.`);
-            break;
-          } else {
-            console.error(`❌ Error fetching NFT ${i}:`, error);
-          }
-        }
-      }
-
-      setNfts(loadedNFTs);
-    };
-
-    fetchNFTs();
+    checkConnection();
+    fetchCollections();
   }, []);
 
-  const scrollToNFTs = () => {
-    if (nftsRef.current) {
-      nftsRef.current.scrollIntoView({ behavior: "smooth" });
+  const checkConnection = async () => {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          if (loggedInWallet && accounts[0].toLowerCase() !== loggedInWallet.toLowerCase()) {
+            console.warn("MetaMask account differs from logged-in wallet:", accounts[0], loggedInWallet);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking connection:", error);
+      }
     }
   };
 
-  const handleColorFilterChange = (event) => {
-    setColorFilter(event.target.value);
-  };
-
-  const handleSortOrderChange = (event) => {
-    setSortOrder(event.target.value);
-  };
-
-  let filteredNFTs = nfts.filter((nft) => {
-    const searchMatch = nft.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const colorMatch = colorFilter ? nft.color === colorFilter : true;
-    return searchMatch && colorMatch;
-  });
-
-  if (sortOrder) {
-    filteredNFTs = [...filteredNFTs].sort((a, b) => {
-      if (sortOrder === "az") {
-        return a.name.localeCompare(b.name);
-      } else if (sortOrder === "za") {
-        return b.name.localeCompare(a.name);
-      } else if (sortOrder === "priceLow") {
-        return a.price - b.price;
-      } else if (sortOrder === "priceHigh") {
-        return b.price - a.price;
+  const fetchCollections = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("jwtToken");
+      const response = await axios.get(`${BACKEND_URL}/api/collections`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      console.log("Collections response:", response.data);
+      const fetchedCollections = response.data.map((col) => {
+        const folderPath = `${PINATA_GATEWAY}${col.base_cid}/${col.category}/1.png`;
+        const flatPath = `${PINATA_GATEWAY}${col.base_cid}/1.png`;
+        return {
+          name: col.category,
+          firstImage: folderPath,
+          flatImage: flatPath,
+          tokenIdStart: col.token_id_start,
+          nftCount: col.nft_count,
+        };
+      });
+      setCollections(fetchedCollections);
+      if (fetchedCollections.length === 0) {
+        setError("No collections found in the database.");
       }
-      return 0;
-    });
-  }
+    } catch (error) {
+      console.error("Error fetching collections:", error);
+      setError(`Failed to load collections: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const connectMetaMask = async () => {
+    if (!window.ethereum) return alert("MetaMask not detected!");
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      setAccount(accounts[0]);
+    } catch (error) {
+      console.error("MetaMask connection error:", error);
+      alert("Failed to connect to MetaMask.");
+    }
+  };
+
+  const handleImageError = (collection, e) => {
+    if (e.target.src !== collection.flatImage) {
+      e.target.src = collection.flatImage;
+    }
+  };
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Box
-        sx={{
-          height: "400px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          flexDirection: "column",
-          color: "white",
-          background: "linear-gradient(135deg, #2c0e3a, #8e24aa)",
-          borderRadius: "15px",
-          padding: "40px",
-          boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.3)",
-        }}
-      >
-        <Typography variant="h3" sx={{ fontWeight: "bold", mb: 2 }}>
-          Discover & Collect Rare NFTs
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          NFT Collections
         </Typography>
-        <Typography variant="h6" sx={{ opacity: 0.8, mb: 3 }}>
-          Explore digital art & collectibles in the most trusted marketplace.
-        </Typography>
-        <Button
-          sx={{
-            background: "#8e24aa",
-            color: "white",
-            padding: "12px 20px",
-            borderRadius: "30px",
-            fontSize: "16px",
-            fontWeight: "bold",
-            transition: "0.3s",
-            "&:hover": {
-              background: "#4a148c",
-              transform: "scale(1.05)",
-            },
-          }}
-          onClick={scrollToNFTs} // Changed to scrollToNFTs
-        >
-          Explore Marketplace
-        </Button>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, mb: 2 }}>
+          {loggedInWallet ? (
+            <Typography variant="body1">
+              Logged in as: {loggedInWallet.substring(0, 6)}...{loggedInWallet.substring(loggedInWallet.length - 4)}
+            </Typography>
+          ) : (
+            <Typography variant="body1" color="error">
+              Not logged in. Please log in to access all features.
+            </Typography>
+          )}
+          {!account ? (
+            <Button variant="contained" onClick={connectMetaMask}>
+              Connect MetaMask
+            </Button>
+          ) : (
+            <Typography variant="body2">
+              MetaMask: {account.substring(0, 6)}...{account.substring(account.length - 4)}
+            </Typography>
+          )}
+          <Button variant="outlined" onClick={fetchCollections}>
+            Refresh Collections
+          </Button>
+        </Box>
       </Box>
 
-      {/* Search and Filters */}
-      <SearchBarWrapper>
-        <SearchBox>
-          <SearchIcon sx={{ color: "#8e24aa" }} />
-          <StyledInputBase
-            placeholder="Search NFTs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-        <FormControl sx={{ m: 1, minWidth: 120 }}>
-          <InputLabel id="sort-order-label">Sort By</InputLabel>
-          <Select
-            labelId="sort-order-label"
-            id="sort-order"
-            value={sortOrder}
-            onChange={handleSortOrderChange}
-          >
-            <MenuItem value="az">A-Z</MenuItem>
-            <MenuItem value="za">Z-A</MenuItem>
-            <MenuItem value="priceLow">Price (Low to High)</MenuItem>
-            <MenuItem value="priceHigh">Price (High to Low)</MenuItem>
-          </Select>
-        </FormControl>
-      </SearchBarWrapper>
-
-      {/* NFT Cards */}
-      <Grid container spacing={3} sx={{ mt: 2 }} ref={nftsRef}> {/* Added ref here */}
-        {filteredNFTs.map((nft) => (
-          <Grid item xs={12} sm={6} md={4} key={nft.id}>
-            <Card onClick={() => navigate(`/market/nft/${nft.id}`)}>
-              <CardMedia component="img" height="200" image={nft.image} alt={nft.name} />
-              <CardContent>
-                <Typography variant="h6">{nft.name}</Typography>
-                <Typography variant="body2">Price: {nft.price} ETH</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Typography color="error" align="center">
+          {error}
+        </Typography>
+      ) : collections.length === 0 ? (
+        <Typography align="center">No collections available.</Typography>
+      ) : (
+        <Grid container spacing={4}>
+          {collections.map((collection) => (
+            <Grid item key={collection.name} xs={12} sm={6} md={4} lg={3}>
+              <Card
+                sx={{ height: "100%", display: "flex", flexDirection: "column", cursor: "pointer" }}
+                onClick={() => navigate(`/market/${collection.name}`)}
+              >
+                <Box sx={{ position: "relative", pt: "100%" }}>
+                  <CardMedia
+                    component="img"
+                    image={collection.firstImage}
+                    alt={collection.name}
+                    onError={(e) => handleImageError(collection, e)}
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </Box>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h5" component="h2">
+                    {collection.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {collection.nftCount} NFTs
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
 };
