@@ -1,0 +1,4 @@
+# Ignore node_modules from both backend and frontend
+**/node_modules/
+/backend/build/contracts/
+/backend/build/
