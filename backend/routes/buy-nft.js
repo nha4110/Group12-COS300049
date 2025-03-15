@@ -3,49 +3,42 @@ const router = express.Router();
 const jwt = require("jsonwebtoken");
 
 module.exports = (pool) => {
-  const verifyToken = (req, res, next) => {
+  router.post("/", async (req, res) => {
+    const { walletAddress, nftId, nftName, price, tokenID, contractAddress, imageUrl, category, txHash } = req.body;
     const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ success: false, message: "No token provided" });
-    }
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
-      req.user = decoded; // decoded contains { id, wallet, ... }
-      next();
-    } catch (error) {
-      return res.status(401).json({ success: false, message: "Invalid or expired token" });
-    }
-  };
-
-  router.post("/", verifyToken, async (req, res) => {
-    const {
-      walletAddress,
-      nftId,
-      nftName,
-      price,
-      tokenID,
-      contractAddress,
-      imageUrl,
-      category,
-      txHash,
-      creator, // Added but not used in DB insertion
-    } = req.body;
 
     if (!walletAddress || !tokenID || !contractAddress || !txHash) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
     try {
-      const userResult = await pool.query("SELECT account_id, wallet_address FROM users WHERE account_id = $1", [
-        req.user.id,
-      ]);
-      if (userResult.rowCount === 0) {
-        return res.status(401).json({ success: false, message: "User not found" });
+      let accountId;
+
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
+          accountId = decoded.accountId;
+          const userResult = await pool.query("SELECT wallet_address FROM users WHERE account_id = $1", [accountId]);
+
+          if (userResult.rowCount === 0) {
+            return res.status(401).json({ success: false, message: "User not found" });
+          }
+
+          const userWallet = userResult.rows[0].wallet_address;
+          if (userWallet.toLowerCase() !== walletAddress.toLowerCase()) {
+            return res.status(403).json({ success: false, message: "Wallet address does not match logged-in user" });
+          }
+        } catch (jwtError) {
+          console.warn("Invalid JWT token, falling back to wallet address:", jwtError.message);
+        }
       }
 
-      const { account_id: accountId, wallet_address: dbWalletAddress } = userResult.rows[0];
-      if (dbWalletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
-        return res.status(403).json({ success: false, message: "Wallet address does not match authenticated user" });
+      if (!accountId) {
+        let userResult = await pool.query("SELECT account_id FROM users WHERE wallet_address = $1", [walletAddress]);
+        if (userResult.rowCount === 0) {
+          return res.status(401).json({ success: false, message: "User not authenticated and wallet not registered" });
+        }
+        accountId = userResult.rows[0].account_id;
       }
 
       const tokenCheck = await pool.query("SELECT asset_id FROM assets WHERE token_id = $1", [tokenID]);
@@ -73,11 +66,7 @@ module.exports = (pool) => {
         const isTxDuplicate = error.constraint === "transactions_tx_hash_key";
         return res.status(400).json({
           success: false,
-          message: isAssetDuplicate
-            ? "NFT already owned"
-            : isTxDuplicate
-            ? "Transaction already recorded"
-            : "Duplicate entry",
+          message: isAssetDuplicate ? "NFT already owned" : isTxDuplicate ? "Transaction already recorded" : "Duplicate entry",
           details: error.detail,
         });
       }

@@ -36,7 +36,7 @@ const Login = () => {
         dispatch({ type: "LOGIN", payload: response.user });
         localStorage.setItem("user", JSON.stringify(response.user));
         localStorage.setItem("jwtToken", response.token);
-        localStorage.setItem("wallet_address", response.user.wallet_address);
+        localStorage.setItem("wallet_address", response.user.wallet_address); // Already matches
         navigate("/profile");
       } else {
         setError(response.message);
