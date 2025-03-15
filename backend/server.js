@@ -30,7 +30,7 @@ const assetsRouter = require("./routes/assets")(pool);
 const loginRoutes = require("./routes/login");
 const buyNFTRoutes = require("./routes/buy-nft");
 const checkNFTOwnershipRoutes = require("./routes/check-nft-ownership");
-const transferRoutes = require("./routes/transfer"); // Ensure this matches the file name
+const transferRoutes = require("./routes/transfer");
 
 // Save Admin Wallet to File
 function saveAdminWallet(walletAddress) {
@@ -103,10 +103,16 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
-    req.user = decoded;
+    console.log("Decoded JWT:", JSON.stringify(decoded, null, 2));
+    req.user = {
+      accountId: decoded.account_id || decoded.id,
+      username: decoded.username,
+      walletAddress: decoded.wallet_address || decoded.walletAddress || decoded.wallet // Add support for 'wallet'
+    };
+    console.log("req.user set to:", JSON.stringify(req.user, null, 2));
     next();
   } catch (error) {
-    console.error("JWT Verification Error:", error);
+    console.error("JWT Verification Error:", error.message);
     res.status(403).json({ success: false, message: "Invalid token" });
   }
 };
@@ -118,7 +124,7 @@ app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
-app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool)); // Mount /transfer route
+app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool));
 
 // Signup Route
 app.post("/signup", async (req, res) => {
@@ -146,7 +152,13 @@ app.post("/signup", async (req, res) => {
       [username, email, hashedPassword, walletAddress]
     );
 
-    res.json({ success: true, message: "User registered successfully.", walletAddress });
+    const token = jwt.sign(
+      { account_id: result.rows[0].account_id, username, wallet_address: walletAddress },
+      process.env.JWT_SECRET || "your_jwt_secret",
+      { expiresIn: "1h" }
+    );
+
+    res.json({ success: true, message: "User registered successfully.", walletAddress, token });
   } catch (error) {
     console.error("❌ Signup Error:", error);
     res.status(500).json({ success: false, message: "Database error" });
@@ -194,6 +206,42 @@ app.post("/api/collections", async (req, res) => {
   } catch (error) {
     console.error("Error creating collection:", error);
     res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+// NFT Transactions Route
+app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
+  try {
+    const walletAddress = req.user.walletAddress;
+    if (!walletAddress) {
+      return res.status(400).json({ success: false, message: "Wallet address not provided in token" });
+    }
+    const normalizedWalletAddress = walletAddress.toLowerCase();
+    console.log(`Fetching NFT transactions for wallet: ${normalizedWalletAddress}`);
+    const result = await pool.query(
+      `SELECT 
+         transaction_id,
+         account_id,
+         sender_address AS "from",
+         recipient_address AS "to",
+         token_id,
+         nft_name,
+         amount_eth AS amount,
+         transaction_type,
+         contract_address,
+         tx_hash,
+         created_at AS date
+       FROM transactions
+       WHERE (sender_address = $1 OR recipient_address = $1)
+         AND token_id IS NOT NULL
+       ORDER BY created_at DESC`,
+      [normalizedWalletAddress]
+    );
+    console.log(`NFT transactions fetched: ${result.rows.length} records`, JSON.stringify(result.rows, null, 2));
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching NFT transactions:", error.message, error.stack);
+    res.status(500).json({ success: false, message: `Database error: ${error.message}` });
   }
 });
 

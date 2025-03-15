@@ -1,35 +1,32 @@
-import React, { useEffect, useState } from "react";
-import { Container, Typography, Paper, List, ListItem, ListItemText } from "@mui/material";
-import { useAuth } from "../scripts/AuthContext";
-import axios from "axios";
+import React, { useState } from "react";
+import { Container, Typography, Tabs, Tab, Box } from "@mui/material";
+import BalanceTransactionsHistory from "../component/BalanceTransactionsHistory";
+import NFTTransactionsHistory from "../component/NFTTransactionsHistory"; // New component
 
 const History = () => {
-    const { state } = useAuth();
-    const user = state.user;
-    const [transactions, setTransactions] = useState([]);
+  const [tabValue, setTabValue] = useState(0);
 
-    useEffect(() => {
-        if (user) {
-            axios.get(`http://localhost:5000/history/${user.wallet_address}`)
-                .then(response => setTransactions(response.data))
-                .catch(() => setTransactions([]));
-        }
-    }, [user]);
 
-    return (
-        <Container maxWidth="sm">
-            <Paper elevation={3} sx={{ padding: 3, marginTop: 4 }}>
-                <Typography variant="h4" gutterBottom>Transaction History</Typography>
-                <List>
-                    {transactions.map((tx, index) => (
-                        <ListItem key={index}>
-                            <ListItemText primary={`Sent ${tx.amount} ETH to ${tx.recipient}`} secondary={tx.reference} />
-                        </ListItem>
-                    ))}
-                </List>
-            </Paper>
-        </Container>
-    );
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+
+  return (
+    <Container maxWidth="md">
+      <Typography variant="h4" sx={{ textAlign: "center", marginTop: 4, fontWeight: "bold" }}>
+        Transaction History
+      </Typography>
+      <Tabs value={tabValue} onChange={handleTabChange} centered sx={{ marginTop: 3 }}>
+        <Tab label="NFT Transactions" />
+        <Tab label="Balance Transactions" />
+      </Tabs>
+      <Box sx={{ marginTop: 3 }}>
+        {tabValue === 0 && <NFTTransactionsHistory />}
+        {tabValue === 1 && <BalanceTransactionsHistory />}
+      </Box>
+    </Container>
+  );
 };
 
 export default History;
