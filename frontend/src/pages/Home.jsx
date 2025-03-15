@@ -118,7 +118,7 @@ const Home = () => {
             size="large"
             startIcon={<TrendingUpIcon />}
             sx={{ mt: 2, bgcolor: 'white', color: '#2196F3', '&:hover': { bgcolor: '#f0f0f0' } }}
-            onClick={() => navigate('/explore')}
+            onClick={() => navigate('/market/out')}
           >
             Explore Now
           </Button>
