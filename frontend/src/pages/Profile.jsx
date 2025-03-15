@@ -1,238 +1,61 @@
 import React, { useState, useEffect } from "react";
-import { 
-    Container, Typography, Paper, Button, TextField, Tabs, Tab, Box 
+import {
+  Container,
+  Typography,
+  Paper,
+  Button,
+  Tabs,
+  Tab,
+  Box,
+  Divider,
 } from "@mui/material";
 import { getWalletBalance } from "../api/wallet";
-import { uploadToPinata } from "../api/pinataService";
 import { useAuth } from "../scripts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
 import Web3 from "web3";
-
-
-const Profile = () => {
-    const { state, dispatch } = useAuth();
-    const navigate = useNavigate();
-    const user = state.user;
-    const accountId = user?.accountid;
-
-    const [walletAddress, setWalletAddress] = useState("");
-    const [balance, setBalance] = useState("Loading...");
-    const [recipientAddress, setRecipientAddress] = useState("");
-    const [amount, setAmount] = useState("");
-    const [gasPrice, setGasPrice] = useState("0.000000002");
-    const [balanceAfter, setBalanceAfter] = useState("");
-    const [currentTab, setCurrentTab] = useState("NFT Collection");
-    
-    const [web3, setWeb3] = useState(null);
-    
-    // Upload state variables
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
-    const [ipfsHash, setIpfsHash] = useState("");
-
-    useEffect(() => {
-        if (user && user.walletAddress) {
-            setWalletAddress(user.walletAddress);
-            fetchBalance(user.walletAddress);
-        }
-
-        if (window.ethereum) {
-            setWeb3(new Web3(window.ethereum));
-        }
-    }, [user]);
-
-    const fetchBalance = async (walletAddress) => {
-        try {
-            const balanceData = await getWalletBalance(walletAddress);
-            if (balanceData.success) {
-                setBalance(balanceData.balance);
-            } else {
-                console.error("Error fetching balance:", balanceData.message || "Unknown error");
-                setBalance("Failed to fetch balance");
-            }
-        } catch (error) {
-            console.error("Error fetching balance:", error);
-            setBalance("Failed to fetch balance");
-        }
-    };
-
-    const sendDirectETH = async () => {
-        try {
-            if (!ethers.isAddress(recipientAddress)) {
-                alert("Invalid recipient address.");
-                return;
-            }
-
-            if (!web3) {
-                alert("Please install MetaMask or another web3 provider.");
-                return;
-            }
-
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const senderAddress = accounts[0];
-
-            const amountWei = web3.utils.toWei(amount, 'ether');
-
-            const transactionObject = {
-                from: senderAddress,
-                to: recipientAddress,
-                value: amountWei,
-                gas: 21000,
-            };
-
-            web3.eth.sendTransaction(transactionObject)
-                .on('transactionHash', (hash) => {
-                    alert(`Transaction successful! TX Hash: ${hash}`);
-                    fetchBalance(walletAddress);
-                })
-                .on('error', (error) => {
-                    alert(`Transaction failed: ${error.message}`);
-                });
-        } catch (error) {
-            alert(`Transaction failed: ${error.message}`);
-        }
-    };
-
-    const handleTabChange = (event, newTab) => {
-        setCurrentTab(newTab);
-    };
-
-    useEffect(() => {
-        if (balance && amount && gasPrice && !isNaN(balance) && !isNaN(amount) && !isNaN(gasPrice)) {
-            const balanceNum = parseFloat(balance);
-            const amountNum = parseFloat(amount);
-            const gasNum = parseFloat(gasPrice);
-            const newBalance = balanceNum - amountNum - gasNum;
-            setBalanceAfter(newBalance.toFixed(18));
-        } else {
-            setBalanceAfter("");
-        }
-    }, [balance, amount, gasPrice]);
-
-    // Upload file to Pinata
-    const handleFileUpload = async () => {
-        if (!selectedFile) {
-            alert("Please select a file first.");
-            return;
-        }
-
-        setUploading(true);
-
-        try {
-            const fileName = selectedFile.name;
-            const ipfsHash = await uploadToPinata(selectedFile, fileName);
-
-            if (ipfsHash) {
-                setIpfsHash(ipfsHash);
-                alert(`Upload successful! IPFS Hash: ${ipfsHash}`);
-            } else {
-                alert("Upload failed. Please try again.");
-            }
-        } catch (error) {
-            console.error("Upload error:", error);
-            alert("Upload failed.");
-        }
-
-        setUploading(false);
-    };
-
-
+import NFTCollectionTab from "../component/NFTCollectionTab";
+import BalanceSenderTab from "../component/BalanceSenderTab";
+import CreateNFTTab from "../component/CreateNFTTab";
 
 const Profile = () => {
   const { state, dispatch } = useAuth();
   const navigate = useNavigate();
   const user = state.user;
-  const accountId = user?.account_id;
+  const accountId = user?.accountId || user?.account_id;
 
   const [walletAddress, setWalletAddress] = useState("");
   const [balance, setBalance] = useState("Loading...");
-  const [currentTab, setCurrentTab] = useState("NFT Collection");
+  const [currentTab, setCurrentTab] = useState(0);
   const [web3, setWeb3] = useState(null);
 
-
   useEffect(() => {
-    if (user && user.wallet_address) {
-      setWalletAddress(user.wallet_address);
-      fetchBalance(user.wallet_address);
+    if (user) {
+      const wallet = user.walletAddress || user.wallet_address;
+      if (wallet) {
+        setWalletAddress(wallet);
+        fetchBalance(wallet);
+      } else {
+        setBalance("No wallet address available");
+      }
     }
     if (window.ethereum) {
       setWeb3(new Web3(window.ethereum));
     }
   }, [user]);
 
-
-    return (
-        <Container maxWidth="sm">
-            <Paper elevation={3} sx={{ padding: 3, marginTop: 4, textAlign: "center" }}>
-                <Typography variant="h4" gutterBottom>Profile</Typography>
-                <Typography variant="h6">Account ID: {accountId}</Typography>
-                <Typography variant="h6">Username: {user.username}</Typography>
-                <Typography variant="h6">Email: {user.email}</Typography>
-                <Typography variant="h6">Wallet Address: {walletAddress}</Typography>
-                <Typography variant="h6">Balance: {balance} ETH</Typography>
-            </Paper>
-
-            <Box sx={{ width: '100%', marginTop: 4 }}>
-                <Tabs value={currentTab} onChange={handleTabChange} centered>
-                    <Tab label="NFT Collection" value="NFT Collection" />
-                    <Tab label="Balance Sender" value="Balance Sender" />
-                    <Tab label="Upload" value="Upload" />
-                </Tabs>
-            </Box>
-
-            {currentTab === "NFT Collection" && (
-                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
-                    <Typography variant="h6">NFT Collection</Typography>
-                </Paper>
-            )}
-
-            {currentTab === "Balance Sender" && (
-                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
-                    <Typography variant="h6">Send ETH (Direct)</Typography>
-                    <TextField label="Your Wallet Address" fullWidth margin="normal" value={walletAddress} InputProps={{ readOnly: true }} />
-                    <TextField label="Recipient Address" fullWidth margin="normal" value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} />
-                    <TextField label="Amount (ETH)" fullWidth margin="normal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-                    {balanceAfter && (
-                        <Typography variant="body1" sx={{ marginTop: 2 }}>
-                            Balance After Send: {balanceAfter} ETH
-                        </Typography>
-                    )}
-                    <Button variant="contained" color="primary" onClick={sendDirectETH}>
-                        Send
-                    </Button>
-                </Paper>
-            )}
-
-            {currentTab === "Upload" && (
-                <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
-                    <Typography variant="h6">Upload File to IPFS</Typography>
-                    <input type="file" onChange={(e) => setSelectedFile(e.target.files[0])} />
-                    <Button variant="contained" color="primary" sx={{ marginTop: 2 }} onClick={handleFileUpload} disabled={uploading}>
-                        {uploading ? "Uploading..." : "Upload"}
-                    </Button>
-                    {ipfsHash && (
-                        <Typography variant="body1" sx={{ marginTop: 2 }}>
-                            IPFS Hash: <a href={`https://gateway.pinata.cloud/ipfs/${ipfsHash}`} target="_blank" rel="noopener noreferrer">{ipfsHash}</a>
-                        </Typography>
-                    )}
-                </Paper>
-            )}
-
-            <Button variant="contained" color="error" sx={{ marginTop: 3 }} onClick={() => { dispatch({ type: "LOGOUT" }); localStorage.removeItem("user_wallet"); localStorage.removeItem("username"); navigate("/login"); }}>
-                Logout
-            </Button>
-        </Container>
-    );
-
   const fetchBalance = async (walletAddress) => {
+    if (!walletAddress) {
+      setBalance("Invalid wallet address");
+      return;
+    }
+
     try {
       const balanceData = await getWalletBalance(walletAddress);
-      if (balanceData.success) {
-        setBalance(balanceData.balance);
+      if (balanceData?.success) {
+        const balanceInEth = web3?.utils?.fromWei(balanceData.balance, "ether") || balanceData.balance;
+        setBalance(parseFloat(balanceInEth).toFixed(6));
       } else {
-        console.error("Error fetching balance:", balanceData.message || "Unknown error");
-        setBalance("Failed to fetch balance");
+        throw new Error(balanceData?.message || "API error");
       }
     } catch (error) {
       console.error("Error fetching balance:", error);
@@ -245,55 +68,89 @@ const Profile = () => {
   };
 
   if (!user) {
-    return <Typography variant="h6" color="error">Unauthorized Access</Typography>;
+    return (
+      <Container maxWidth="sm">
+        <Typography variant="h6" color="error" align="center">
+          Unauthorized Access
+        </Typography>
+      </Container>
+    );
   }
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="md">
+      {/* Profile Details */}
       <Paper elevation={3} sx={{ padding: 3, marginTop: 4, textAlign: "center" }}>
-        <Typography variant="h4" gutterBottom>Profile</Typography>
-        <Typography variant="h6">Account ID: {accountId}</Typography>
-        <Typography variant="h6">Username: {user.username}</Typography>
-        <Typography variant="h6">Email: {user.email}</Typography>
-        <Typography variant="h6">Wallet Address: {walletAddress}</Typography>
-        <Typography variant="h6">Balance: {balance} ETH</Typography>
+        <Typography variant="h4" gutterBottom>
+          Profile
+        </Typography>
+        <Divider sx={{ marginBottom: 2 }} />
+        <Box sx={{ textAlign: "left", paddingLeft: 2 }}>
+          <Typography variant="body1">
+            <strong>Account ID:</strong> {accountId || "Not set"}
+          </Typography>
+          <Typography variant="body1">
+            <strong>Username:</strong> {user.username || "Not set"}
+          </Typography>
+          <Typography variant="body1">
+            <strong>Email:</strong> {user.email || "Not set"}
+          </Typography>
+          <Typography variant="body1">
+            <strong>Wallet Address:</strong> {walletAddress || "Not set"}
+          </Typography>
+          <Typography variant="body1">
+            <strong>Balance:</strong> {balance} ETH
+          </Typography>
+        </Box>
       </Paper>
 
+      {/* Tab Navigation */}
       <Box sx={{ width: "100%", marginTop: 4 }}>
-        <Tabs value={currentTab} onChange={handleTabChange} centered>
-          <Tab label="NFT Collection" value="NFT Collection" />
-          <Tab label="Balance Sender" value="Balance Sender" />
-          <Tab label="Create NFT" value="Create NFT" />
+        <Tabs
+          value={currentTab}
+          onChange={handleTabChange}
+          centered
+          variant="fullWidth"
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="NFT Collection" />
+          <Tab label="Send ETH" />
+          <Tab label="Create NFT" />
         </Tabs>
       </Box>
 
-      {currentTab === "NFT Collection" && <NFTCollectionTab />}
-      {currentTab === "Balance Sender" && (
-        <BalanceSenderTab
-          walletAddress={walletAddress}
-          web3={web3}
-          fetchBalance={fetchBalance}
-          balance={balance}
-        />
-      )}
-      {currentTab === "Create NFT" && (
-        <CreateNFTTab walletAddress={walletAddress} web3={web3} />
-      )}
+      {/* Tab Content */}
+      <Box sx={{ marginTop: 2 }}>
+        {currentTab === 0 && <NFTCollectionTab />}
+        {currentTab === 1 && (
+          <BalanceSenderTab
+            walletAddress={walletAddress}
+            web3={web3}
+            fetchBalance={fetchBalance}
+            balance={balance}
+          />
+        )}
+        {currentTab === 2 && <CreateNFTTab walletAddress={walletAddress} web3={web3} />}
+      </Box>
 
-      <Button
-        variant="contained"
-        color="error"
-        sx={{ marginTop: 3 }}
-        onClick={() => {
-          dispatch({ type: "LOGOUT" });
-          navigate("/home");
-        }}
-      >
-        Logout
-      </Button>
+      {/* Logout Button */}
+      <Box sx={{ display: "flex", justifyContent: "center", marginTop: 3 }}>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            dispatch({ type: "LOGOUT" });
+            localStorage.removeItem("user_wallet");
+            localStorage.removeItem("username");
+            navigate("/home");
+          }}
+        >
+          Logout
+        </Button>
+      </Box>
     </Container>
   );
+};
 
-};
-};
 export default Profile;
