@@ -28,20 +28,19 @@ const SearchAppBar = () => {
       setBalance(null);
       return;
     }
-
     try {
-      // Try backend first
       const response = await fetch(`http://localhost:8081/wallet/balance/${walletAddress}`);
       const data = await response.json();
       if (data.success) {
         const backendBalance = parseFloat(data.balance).toFixed(4);
+        console.log(`Backend balance for ${walletAddress}: ${backendBalance} ETH`);
         setBalance(backendBalance);
-        // Verify with blockchain
         if (window.ethereum) {
           const provider = new ethers.BrowserProvider(window.ethereum);
-          const balanceWei = await provider.getBalance(walletAddress);
+          const balanceWei = await provider.getBalance(walletAddress, "latest");
           const balanceEth = ethers.formatEther(balanceWei);
           const blockchainBalance = parseFloat(balanceEth).toFixed(4);
+          console.log(`Blockchain balance for ${walletAddress}: ${blockchainBalance} ETH`);
           if (backendBalance !== blockchainBalance) {
             console.warn("Backend balance mismatch with blockchain:", backendBalance, blockchainBalance);
             setBalance(blockchainBalance); // Trust blockchain
@@ -56,11 +55,10 @@ const SearchAppBar = () => {
         if (!window.ethereum) throw new Error("MetaMask not detected");
         const provider = new ethers.BrowserProvider(window.ethereum);
         let balanceEth = null;
-        // Retry up to 3 times with 1-second delay to ensure sync
         for (let i = 0; i < 3; i++) {
-          const balanceWei = await provider.getBalance(walletAddress);
+          const balanceWei = await provider.getBalance(walletAddress, "latest");
           balanceEth = ethers.formatEther(balanceWei);
-          if (parseFloat(balanceEth) > 0 || i === 2) break; // Exit if non-zero or last attempt
+          if (parseFloat(balanceEth) > 0 || i === 2) break;
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
         setBalance(parseFloat(balanceEth).toFixed(4));

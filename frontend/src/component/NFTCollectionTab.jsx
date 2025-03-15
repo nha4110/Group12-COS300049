@@ -3,8 +3,7 @@ import { Paper, Typography, Grid, Card, CardMedia, CardContent, Box, CircularPro
 import axios from "axios";
 import { useAuth } from "../scripts/AuthContext";
 
-// Define PINATA_BASE_URL as in Home.jsx
-const PINATA_BASE_URL = "https://gateway.pinata.cloud/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
+const BACKEND_URL = "http://localhost:8081";
 
 const NFTCollectionTab = () => {
   const { state } = useAuth();
@@ -22,7 +21,7 @@ const NFTCollectionTab = () => {
       }
 
       try {
-        const response = await axios.get(`http://localhost:8081/assets/${walletAddress}`, {
+        const response = await axios.get(`${BACKEND_URL}/assets/${walletAddress}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
           },
@@ -83,7 +82,7 @@ const NFTCollectionTab = () => {
                 <Box sx={{ position: "relative", pt: "100%" }}>
                   <CardMedia
                     component="img"
-                    image={`${PINATA_BASE_URL}/${nft.image_url}`} // Now PINATA_BASE_URL is defined
+                    image={nft.image_url} // Full URL from backend
                     alt={nft.nft_name}
                     sx={{
                       position: "absolute",
@@ -108,6 +107,9 @@ const NFTCollectionTab = () => {
                   </Typography>
                   <Typography variant="caption" display="block" color="text.secondary">
                     Price: {nft.price_eth} ETH
+                  </Typography>
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    Category: {nft.category}
                   </Typography>
                 </CardContent>
               </Card>

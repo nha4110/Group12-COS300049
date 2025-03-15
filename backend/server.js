@@ -28,9 +28,9 @@ const authRoutes = require("./scripts/auth.js").router;
 const walletRoutes = require("./routes/wallet");
 const assetsRouter = require("./routes/assets")(pool);
 const loginRoutes = require("./routes/login");
-const transferRoutes = require("./routes/transfer");
 const buyNFTRoutes = require("./routes/buy-nft");
 const checkNFTOwnershipRoutes = require("./routes/check-nft-ownership");
+const transferRoutes = require("./routes/transfer");
 
 // Save Admin Wallet to File
 function saveAdminWallet(walletAddress) {
@@ -49,16 +49,14 @@ function extractAddress(wallet) {
   return null;
 }
 
-// Assign Next Available Wallet (Moved here for reuse)
+// Assign Next Available Wallet from Ganache
 async function assignNextAvailableWallet() {
   const accounts = await provider.listAccounts();
-  for (const account of accounts) {
+  const usedWallets = (await pool.query("SELECT wallet_address FROM users")).rows.map(row => row.wallet_address.toLowerCase());
+  
+  for (const account of accounts.slice(1)) { // Skip admin (index 0)
     const address = extractAddress(account);
-    const exists = await pool.query(
-      "SELECT EXISTS(SELECT 1 FROM users WHERE wallet_address = $1) AS exists",
-      [address]
-    );
-    if (!exists.rows[0].exists) {
+    if (address && !usedWallets.includes(address.toLowerCase())) {
       return address;
     }
   }
@@ -72,25 +70,22 @@ async function setupAdminWallet() {
   if (accounts.length < 1) return console.error("❌ No Ganache accounts found!");
 
   const newAdminWallet = extractAddress(accounts[0]);
-  const dbResult = await pool.query("SELECT wallet_address FROM users WHERE account_id = 1");
+  const dbResult = await pool.query("SELECT wallet_address FROM users WHERE username = $1", ["admin"]);
   const currentDbWallet = dbResult.rows.length ? extractAddress(dbResult.rows[0].wallet_address) : null;
 
   if (!currentDbWallet) {
     console.log(`🔄 Creating Admin Wallet: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
     await pool.query(
-      `INSERT INTO users (account_id, username, email, password, wallet_address, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       ON CONFLICT (account_id) DO NOTHING`,
-      [1, "admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
+      `INSERT INTO users (username, email, password, wallet_address, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (username) DO NOTHING`,
+      ["admin", "admin@example.com", await bcrypt.hash("admin123", 10), newAdminWallet]
     );
   } else if (currentDbWallet !== newAdminWallet) {
     console.log(`🔄 Updating Admin Wallet to: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
-    await pool.query(
-      `UPDATE users SET wallet_address = $1 WHERE account_id = 1`,
-      [newAdminWallet]
-    );
+    await pool.query(`UPDATE users SET wallet_address = $1 WHERE username = $2`, [newAdminWallet, "admin"]);
   } else {
     console.log("✅ Admin wallet is already correct.");
   }
@@ -98,76 +93,185 @@ async function setupAdminWallet() {
 
 // Check and Update Wallets for Users
 async function checkAndUpdateWallets() {
-  try {
-    // Fetch all users without a wallet_address
-    const result = await pool.query(
-      "SELECT username FROM users WHERE wallet_address IS NULL OR wallet_address = ''"
-    );
-    const usersWithoutWallets = result.rows;
-
-    if (usersWithoutWallets.length === 0) {
-      console.log("✅ All users have wallet addresses.");
-      return;
-    }
-
-    console.log(`🔍 Found ${usersWithoutWallets.length} users without wallet addresses.`);
-
-    for (const user of usersWithoutWallets) {
-      const assignedWallet = await assignNextAvailableWallet();
-      if (!assignedWallet) {
-        console.error("❌ No available wallets left in Ganache to assign.");
-        break;
-      }
-      await pool.query(
-        "UPDATE users SET wallet_address = $1 WHERE username = $2",
-        [assignedWallet, user.username]
-      );
-      console.log(`🎉 Assigned wallet ${assignedWallet} to user ${user.username}`);
-    }
-  } catch (error) {
-    console.error("❌ Error in checkAndUpdateWallets:", error);
-  }
+  console.log("✅ All user wallets are assumed correct (managed client-side).");
 }
+
+// Middleware for JWT Authentication
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ success: false, message: "No token provided" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
+    console.log("Decoded JWT in authenticateToken:", JSON.stringify(decoded, null, 2));
+    req.user = {
+      accountId: decoded.account_id || decoded.id,
+      username: decoded.username,
+      walletAddress: decoded.wallet_address || decoded.walletAddress // Check both variants
+    };
+    console.log("req.user set to:", JSON.stringify(req.user, null, 2));
+    if (!req.user.walletAddress) {
+      console.warn("Warning: walletAddress is missing from JWT payload");
+    }
+    next();
+  } catch (error) {
+    console.error("JWT Verification Error:", error.message);
+    res.status(403).json({ success: false, message: "Invalid token" });
+  }
+};
 
 // Mount Routes with Dependencies
 app.use("/auth", authRoutes);
 app.use("/wallet", walletRoutes(pool, provider));
 app.use("/login", loginRoutes(pool, bcrypt, jwt));
-app.use("/transfer", transferRoutes(provider, ethers, pool));
 app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
+app.use("/transfer", authenticateToken, transferRoutes(provider, ethers, pool));
 
-// Signup Route (Moved to separate file, but included here for completeness)
-app.post("/signup", require("./routes/signup")(pool, bcrypt, assignNextAvailableWallet));
+// Signup Route
+app.post("/signup", async (req, res) => {
+  const { username, email, password } = req.body;
+
+  try {
+    const existingUser = await pool.query(
+      "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 OR email = $2) AS exists",
+      [username, email]
+    );
+    if (existingUser.rows[0].exists) {
+      return res.status(400).json({ success: false, message: "Username or email already exists." });
+    }
+
+    const walletAddress = await assignNextAvailableWallet();
+    if (!walletAddress) {
+      return res.status(500).json({ success: false, message: "No available wallets left in Ganache." });
+    }
+
+    console.log(`🎉 New wallet assigned for ${username}: ${walletAddress}`);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      "INSERT INTO users (username, email, password, wallet_address, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING account_id",
+      [username, email, hashedPassword, walletAddress]
+    );
+
+    res.json({ success: true, message: "User registered successfully.", walletAddress });
+  } catch (error) {
+    console.error("❌ Signup Error:", error.message);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+// Collections Routes
+app.get("/api/collections", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT "id", "category", "creator", "token_id_start", "base_cid", "nft_count", "created_at"
+       FROM "collections"
+       ORDER BY "id"
+       LIMIT 50`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching collections:", error.message);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+app.get("/api/collections/:category", async (req, res) => {
+  const { category } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM collections WHERE category = $1", [category]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Collection not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching collection:", error.message);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+app.post("/api/collections", async (req, res) => {
+  const { category, creator, tokenIdStart, baseCid, nftCount } = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO collections (category, creator, token_id_start, base_cid, nft_count) VALUES ($1, $2, $3, $4, $5)",
+      [category, creator, tokenIdStart, baseCid, nftCount]
+    );
+    res.json({ success: true, message: "Collection created" });
+  } catch (error) {
+    console.error("Error creating collection:", error.message);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+// NFT Transactions Route
+app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
+  try {
+    const walletAddress = req.user.walletAddress.toLowerCase(); // Normalize to match DB
+    console.log(`Fetching NFT transactions for wallet: ${walletAddress}`);
+    const result = await pool.query(
+      `SELECT 
+         transaction_id,
+         account_id,
+         sender_address AS "from",
+         recipient_address AS "to",
+         token_id,
+         nft_name,
+         amount_eth AS amount,
+         transaction_type,
+         contract_address,
+         tx_hash,
+         created_at AS date
+       FROM transactions
+       WHERE (sender_address = $1 OR recipient_address = $1)
+         AND token_id IS NOT NULL
+       ORDER BY created_at DESC`,
+      [walletAddress]
+    );
+    console.log(`NFT transactions fetched: ${result.rows.length} records`, JSON.stringify(result.rows, null, 2));
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching NFT transactions:", error.message, error.stack);
+    res.status(500).json({ success: false, message: `Database error: ${error.message}` });
+  }
+});
 
 // Run Admin Wallet Setup and Check Users on Server Start
 async function initialize() {
-  await setupAdminWallet();
-  await checkAndUpdateWallets();
+  console.log("✅ Starting server without resetting users table.");
+  try {
+    await setupAdminWallet();
+    await checkAndUpdateWallets();
+  } catch (error) {
+    console.error("❌ Initialization Error:", error.message);
+  }
 }
 
 initialize();
 
-// Start Server with Fixed Route Debugging
+// Start Server with Route Debugging
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
   console.log("🚀 Server running on port " + PORT);
-  console.log("Registered routes:", app._router.stack
-    .filter(r => r.route || r.handle.stack)
-    .flatMap(r => {
-      if (r.route) {
-        return [`${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`];
-      }
-      if (r.handle.stack) {
-        const basePath = r.path || '';
-        return r.handle.stack.map(sub => {
-          const method = Object.keys(sub.route.methods)[0].toUpperCase();
-          const subPath = sub.route.path === '/' ? '' : sub.route.path;
-          return `${method} ${basePath}${subPath}`;
-        });
-      }
-      return [];
-    })
+  console.log(
+    "Registered routes:",
+    app._router.stack
+      .filter((r) => r.route || r.handle.stack)
+      .flatMap((r) => {
+        if (r.route) {
+          return [`${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`];
+        }
+        if (r.handle.stack) {
+          const basePath = r.path || "";
+          return r.handle.stack.map((sub) => {
+            const method = Object.keys(sub.route.methods)[0].toUpperCase();
+            const subPath = sub.route.path === "/" ? "" : sub.route.path;
+            return `${method} ${basePath}${subPath}`;
+          });
+        }
+        return [];
+      })
   );
 });

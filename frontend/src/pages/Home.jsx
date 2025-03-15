@@ -1,136 +1,71 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Box } from "@mui/material";
-import { ethers } from "ethers";
-import axios from "axios";
-import contractData from "../../../backend/build/contracts/MyNFT.json";
+import { Container, Button, Typography, CardMedia, Grid, Card, CardContent, CircularProgress, Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../scripts/AuthContext";
-import NFTList from "../component/NFTList";
-import WalletConnection from "../component/WalletConnection";
+import axios from "axios";
 
-const CONTRACT_ADDRESS = "0x84643357E0de364Acc9659021A1920362e1255D5";
-const ABI = contractData.abi;
-const PINATA_BASE_URL = "https://gateway.pinata.cloud/ipfs/bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy";
 const BACKEND_URL = "http://localhost:8081";
-const CACHE_KEY = "nft_cache";
+const PINATA_GATEWAY = "https://gray-magic-tortoise-619.mypinata.cloud/ipfs/";
 
 const Home = () => {
   const navigate = useNavigate();
-  const { state } = useAuth();
-  const [nfts, setNfts] = useState([]);
-  const [account, setAccount] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [account, setAccount] = useState(null); // MetaMask account
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [mintedStatus, setMintedStatus] = useState({});
-  const [nftCount, setNftCount] = useState(0);
+  const [loggedInWallet, setLoggedInWallet] = useState(null); // Local storage wallet
 
   useEffect(() => {
-    checkConnection();
-    loadNFTs();
+    // Check localStorage for wallet_address
+    const wallet = localStorage.getItem("wallet_address");
+    setLoggedInWallet(wallet);
 
-    const handleCacheUpdate = () => fetchNFTs();
-    window.addEventListener("nftCacheUpdated", handleCacheUpdate);
-    return () => window.removeEventListener("nftCacheUpdated", handleCacheUpdate);
-  }, [state.user?.wallet_address]);
+    checkConnection();
+    fetchCollections();
+  }, []);
 
   const checkConnection = async () => {
-    try {
-      if (state.user?.wallet_address) {
-        setAccount(state.user.wallet_address);
-      } else if (window.ethereum) {
+    if (window.ethereum) {
+      try {
         const accounts = await window.ethereum.request({ method: "eth_accounts" });
-        if (accounts.length > 0 && (!state.user?.wallet_address || accounts[0] === state.user.wallet_address)) {
+        if (accounts.length > 0) {
           setAccount(accounts[0]);
-        } else {
-          setAccount(null);
+          if (loggedInWallet && accounts[0].toLowerCase() !== loggedInWallet.toLowerCase()) {
+            console.warn("MetaMask account differs from logged-in wallet:", accounts[0], loggedInWallet);
+          }
         }
-      }
-    } catch (error) {
-      console.error("Error checking connection:", error);
-      setAccount(null);
-    }
-  };
-
-  const loadNFTs = () => {
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    if (cachedData) {
-      const { nfts: cachedNfts, mintedStatus: cachedMintedStatus, timestamp } = JSON.parse(cachedData);
-      const cacheAge = Date.now() - timestamp;
-      const maxAge = 24 * 60 * 60 * 1000;
-      if (cacheAge < maxAge) {
-        setNfts(cachedNfts);
-        setMintedStatus(cachedMintedStatus);
-        setNftCount(cachedNfts.length);
-        setLoading(false);
-        return;
+      } catch (error) {
+        console.error("Error checking connection:", error);
       }
     }
-    fetchNFTs();
   };
 
-  const saveToCache = (nftsData, mintedStatusData) => {
-    const cacheData = {
-      nfts: nftsData,
-      mintedStatus: mintedStatusData,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-  };
-
-  const fetchNFTs = async () => {
+  const fetchCollections = async () => {
     setLoading(true);
     setError(null);
     try {
-      const availableNFTs = Array.from({ length: 20 }, (_, i) => i + 1);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
-
-      const validNFTs = [];
-      const newMintedStatus = {};
-
-      for (const id of availableNFTs) {
-        try {
-          const metadataUrl = `${PINATA_BASE_URL}/${id}.json`;
-          const response = await axios.get(metadataUrl, { timeout: 10000 });
-          const isMintedOnChain = await contract.isMinted(id);
-
-          const ownershipResponse = await axios.get(`${BACKEND_URL}/check-nft-ownership/${id}`);
-          const isOwned = ownershipResponse.data.isOwned;
-
-          newMintedStatus[id] = isMintedOnChain || isOwned;
-
-          if (!isMintedOnChain && !isOwned) {
-            let imageUrl = response.data.image?.startsWith("ipfs://")
-              ? `https://ipfs.io/ipfs/${response.data.image.replace("ipfs://", "")}`
-              : response.data.image || `${PINATA_BASE_URL}/${id}.png`;
-
-            validNFTs.push({
-              id,
-              name: response.data.name || `NFT ${id}`,
-              description: response.data.description || "No description.",
-              image: imageUrl,
-              pngPath: `${PINATA_BASE_URL}/${id}.png`,
-              svgPath: `${PINATA_BASE_URL}/${id}.svg`,
-              metadata: response.data,
-              isMinted: false,
-            });
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch NFT ${id}:`, error.message);
-        }
-      }
-
-      if (validNFTs.length === 0) {
-        setError("No available NFTs found. All may be minted or IPFS content unavailable.");
-      } else {
-        setNfts(validNFTs);
-        setMintedStatus(newMintedStatus);
-        setNftCount(validNFTs.length);
-        saveToCache(validNFTs, newMintedStatus);
+      const token = localStorage.getItem("jwtToken");
+      const response = await axios.get(`${BACKEND_URL}/api/collections`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      console.log("Collections response:", response.data);
+      const fetchedCollections = response.data.map((col) => {
+        const folderPath = `${PINATA_GATEWAY}${col.base_cid}/${col.category}/1.png`;
+        const flatPath = `${PINATA_GATEWAY}${col.base_cid}/1.png`;
+        return {
+          name: col.category,
+          firstImage: folderPath,
+          flatImage: flatPath,
+          tokenIdStart: col.token_id_start,
+          nftCount: col.nft_count,
+        };
+      });
+      setCollections(fetchedCollections);
+      if (fetchedCollections.length === 0) {
+        setError("No collections found in the database.");
       }
     } catch (error) {
-      console.error("Error fetching NFTs:", error);
-      setError("Failed to load NFTs. Please check your connection or IPFS content availability.");
+      console.error("Error fetching collections:", error);
+      setError(`Failed to load collections: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -140,151 +75,97 @@ const Home = () => {
     if (!window.ethereum) return alert("MetaMask not detected!");
     try {
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      if (state.user?.wallet_address && accounts[0] !== state.user.wallet_address) {
-        alert("MetaMask account does not match your logged-in wallet. Please switch accounts or log in again.");
-      } else {
-        setAccount(accounts[0]);
-      }
+      setAccount(accounts[0]);
     } catch (error) {
       console.error("MetaMask connection error:", error);
-      alert("Failed to connect to MetaMask. Please try again.");
+      alert("Failed to connect to MetaMask.");
     }
   };
 
-  const mintNFT = async (tokenId) => {
-    if (!account) return alert("Connect MetaMask first.");
-
-    const token = localStorage.getItem("jwtToken");
-    if (!token) {
-      alert("Please log in first.");
-      navigate("/login");
-      return;
+  const handleImageError = (collection, e) => {
+    if (e.target.src !== collection.flatImage) {
+      e.target.src = collection.flatImage;
     }
-
-    try {
-      const ownershipResponse = await axios.get(`${BACKEND_URL}/check-nft-ownership/${tokenId}`);
-      if (ownershipResponse.data.isOwned) {
-        alert("This NFT is already owned and cannot be minted again.");
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      const cid = PINATA_BASE_URL.replace("https://gateway.pinata.cloud/ipfs/", "");
-      const metadataURI = `ipfs://${cid}/${tokenId}.json`;
-
-      const tx = await contract.payToMint(account, metadataURI, tokenId, {
-        value: ethers.parseEther("0.05"),
-      });
-
-      alert("Transaction submitted. Waiting for confirmation...");
-      const receipt = await tx.wait();
-
-      const gasUsed = receipt.gasUsed || BigInt(0);
-      const effectiveGasPrice = receipt.effectiveGasPrice || BigInt(0);
-      const totalGasFeeWei = gasUsed * effectiveGasPrice;
-      const totalGasFeeEth = ethers.formatEther(totalGasFeeWei);
-
-      const txDetails = {
-        txHash: receipt.hash,
-        from: receipt.from,
-        to: CONTRACT_ADDRESS,
-        amount: "-0.05 ETH",
-        gasUsed: gasUsed.toString(),
-        totalGasFee: totalGasFeeEth,
-      };
-
-      const metadataUrl = `${PINATA_BASE_URL}/${tokenId}.json`;
-      const metadataResponse = await axios.get(metadataUrl);
-      const nftName = metadataResponse.data.name || `NFT ${tokenId}`;
-      const imageUrl = metadataResponse.data.image?.startsWith("ipfs://")
-        ? `https://ipfs.io/ipfs/${metadataResponse.data.image.replace("ipfs://", "")}`
-        : metadataResponse.data.image || `${PINATA_BASE_URL}/${tokenId}.png`;
-
-      const payload = {
-        walletAddress: account,
-        nftId: tokenId,
-        nftName,
-        price: "0.05",
-        tokenID: tokenId,
-        contractAddress: CONTRACT_ADDRESS,
-        imageUrl,
-        category: "Art",
-        txHash: txDetails.txHash,
-      };
-
-      const buyResponse = await axios.post(
-        `${BACKEND_URL}/buy-nft`,
-        payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!buyResponse.data.success) {
-        throw new Error(`Failed to record NFT purchase: ${buyResponse.data.message}`);
-      }
-
-      const nftTransaction = {
-        txHash: txDetails.txHash,
-        from: txDetails.from,
-        to: CONTRACT_ADDRESS,
-        amount: txDetails.amount,
-        gas: totalGasFeeEth,
-        date: new Date().toISOString(),
-        nftName,
-        tokenId,
-        type: "nftPurchase",
-      };
-      const existingNftTransactions = JSON.parse(localStorage.getItem("nftTransactions")) || [];
-      localStorage.setItem("nftTransactions", JSON.stringify([...existingNftTransactions, nftTransaction]));
-
-      setMintedStatus((prev) => ({ ...prev, [tokenId]: true }));
-      setNfts((prev) => {
-        const updatedNfts = prev.filter((nft) => nft.id !== tokenId);
-        saveToCache(updatedNfts, { ...mintedStatus, [tokenId]: true });
-        return updatedNfts;
-      });
-      setNftCount((prev) => prev - 1);
-      alert("NFT minted and recorded successfully!");
-      window.dispatchEvent(new Event("balanceUpdated"));
-    } catch (error) {
-      console.error("Minting error:", error);
-      alert(`Minting failed: ${error.message || "Unknown error"}`);
-    }
-  };
-
-  const shortenAddress = (address) => {
-    if (!address) return "";
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4 }}>
         <Typography variant="h3" component="h1" gutterBottom>
-          NFT Collection
+          NFT Collections
         </Typography>
-        <Typography variant="h6" gutterBottom>
-          Available NFTs: {nftCount} / 59
-        </Typography>
-        <WalletConnection
-          account={account}
-          connectMetaMask={connectMetaMask}
-          fetchNFTs={fetchNFTs}
-          shortenAddress={shortenAddress}
-        />
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, mb: 2 }}>
+          {loggedInWallet ? (
+            <Typography variant="body1">
+              Logged in as: {loggedInWallet.substring(0, 6)}...{loggedInWallet.substring(loggedInWallet.length - 4)}
+            </Typography>
+          ) : (
+            <Typography variant="body1" color="error">
+              Not logged in. Please log in to access all features.
+            </Typography>
+          )}
+          {!account ? (
+            <Button variant="contained" onClick={connectMetaMask}>
+              Connect MetaMask
+            </Button>
+          ) : (
+            <Typography variant="body2">
+              MetaMask: {account.substring(0, 6)}...{account.substring(account.length - 4)}
+            </Typography>
+          )}
+          <Button variant="outlined" onClick={fetchCollections}>
+            Refresh Collections
+          </Button>
+        </Box>
       </Box>
-      <NFTList
-        nfts={nfts}
-        loading={loading}
-        error={error}
-        account={account}
-        mintedStatus={mintedStatus}
-        mintNFT={mintNFT}
-      />
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Typography color="error" align="center">
+          {error}
+        </Typography>
+      ) : collections.length === 0 ? (
+        <Typography align="center">No collections available.</Typography>
+      ) : (
+        <Grid container spacing={4}>
+          {collections.map((collection) => (
+            <Grid item key={collection.name} xs={12} sm={6} md={4} lg={3}>
+              <Card
+                sx={{ height: "100%", display: "flex", flexDirection: "column", cursor: "pointer" }}
+                onClick={() => navigate(`/market/${collection.name}`)}
+              >
+                <Box sx={{ position: "relative", pt: "100%" }}>
+                  <CardMedia
+                    component="img"
+                    image={collection.firstImage}
+                    alt={collection.name}
+                    onError={(e) => handleImageError(collection, e)}
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </Box>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h5" component="h2">
+                    {collection.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {collection.nftCount} NFTs
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
 };

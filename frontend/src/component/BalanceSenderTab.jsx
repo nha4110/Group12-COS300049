@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Paper, Typography, TextField, Button } from "@mui/material";
 import { ethers } from "ethers";
 
-const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
+const BACKEND_URL = "http://localhost:8081";
+
+const BalanceSenderTab = ({ walletAddress, fetchBalance, balance }) => {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
-  const [gasPrice] = useState("0.000000002");
+  const [gasPrice] = useState("0.000000002"); // Default gas price
   const [balanceAfter, setBalanceAfter] = useState("");
 
   useEffect(() => {
@@ -26,61 +28,81 @@ const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
         alert("Invalid recipient address.");
         return;
       }
-      if (!web3) {
-        alert("Please install MetaMask or another web3 provider.");
+
+      if (!window.ethereum) {
+        alert("MetaMask is not installed. Please install it to proceed.");
         return;
       }
 
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      const senderAddress = accounts[0];
-      const amountWei = web3.utils.toWei(amount, "ether");
+      // Request MetaMask connection
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
 
-      const transactionObject = {
-        from: senderAddress,
+      if (userAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        alert("MetaMask account does not match your logged-in wallet address.");
+        return;
+      }
+
+      const amountWei = ethers.parseEther(amount);
+      const tx = {
         to: recipientAddress,
         value: amountWei,
-        gas: 21000,
+        gasLimit: 21000, // Standard ETH transfer gas limit
       };
 
-      alert("Processing your transaction... Please wait.");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      alert("Please confirm the transaction in MetaMask...");
+      const txResponse = await signer.sendTransaction(tx);
+      console.log(`Transaction sent: ${txResponse.hash}`);
+      alert(`Transaction sent! TX Hash: ${txResponse.hash}`);
 
-      web3.eth.sendTransaction(transactionObject)
-        .on("transactionHash", async (hash) => {
-          alert(`Transaction submitted! TX Hash: ${hash}`);
-          const newTransaction = {
-            from: senderAddress,
-            to: recipientAddress,
-            amount: amount,
-            gas: "0.000055",
-            hash: hash,
-            date: new Date().toISOString(),
-            type: "balanceTransfer",
-          };
+      // Wait for confirmation
+      const receipt = await txResponse.wait();
+      console.log(`Transaction confirmed: ${receipt.transactionHash}`);
 
-          // Save to localStorage
-          const existingTransactions = JSON.parse(localStorage.getItem("balanceTransactions")) || [];
-          localStorage.setItem("balanceTransactions", JSON.stringify([...existingTransactions, newTransaction]));
+      // Log transaction to backend
+      const token = localStorage.getItem("jwtToken");
+      if (!token) {
+        alert("No JWT token found. Please log in again.");
+        return;
+      }
 
-          // Wait briefly, update balance, then refresh page
-          setTimeout(() => {
-            fetchBalance(walletAddress); // Update balance before refresh
-            setRecipientAddress("");
-            setAmount("");
-            window.location.reload(); // Full page refresh (Ctrl + R equivalent)
-          }, 3000);
-        })
-        .on("error", (error) => {
-          alert(`Transaction failed: ${error.message}`);
-        });
+      const logResponse = await fetch(`${BACKEND_URL}/transfer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sender_address: walletAddress,
+          recipient_address: recipientAddress,
+          amount_eth: amount,
+          tx_hash: receipt.transactionHash,
+        }),
+      });
+
+      if (!logResponse.ok) {
+        const errorData = await logResponse.json();
+        console.error("Failed to log transaction:", errorData);
+        throw new Error(`Failed to log transaction: ${errorData.message}`);
+      }
+
+      console.log("Transaction logged successfully");
+
+      setTimeout(() => {
+        fetchBalance(walletAddress);
+        window.location.reload();
+      }, 3000);
     } catch (error) {
-      alert(`Transaction Failed: ${error.message}`);
+      console.error("Transaction error:", error);
+      alert(`Transaction failed: ${error.message}`);
     }
   };
 
   return (
     <Paper elevation={3} sx={{ padding: 3, marginTop: 2 }}>
-      <Typography variant="h6">Send ETH (Direct)</Typography>
+      <Typography variant="h6">Send ETH (Direct via MetaMask)</Typography>
       <TextField
         label="Your Wallet Address"
         fullWidth
@@ -108,7 +130,7 @@ const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
         </Typography>
       )}
       <Button variant="contained" color="primary" onClick={sendDirectETH}>
-        Send
+        Send via MetaMask
       </Button>
     </Paper>
   );
