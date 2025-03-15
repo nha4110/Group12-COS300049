@@ -20,7 +20,7 @@ module.exports = (pool, bcrypt, jwt) => {
       console.log(`🔑 User logged in: ${user.username}, Wallet: ${user.wallet_address}`);
 
       const token = jwt.sign(
-        { userId: user.accountid, username: user.username, walletAddress: user.wallet_address },
+        { id: user.account_id, wallet: user.wallet_address }, // Standardized payload
         process.env.JWT_SECRET || "default_secret_key",
         { expiresIn: "1h" }
       );
@@ -29,7 +29,7 @@ module.exports = (pool, bcrypt, jwt) => {
         success: true,
         token,
         user: {
-          accountID: user.accountid,
+          accountId: user.account_id, // Match database column name
           username: user.username,
           email: user.email,
           wallet_address: user.wallet_address,

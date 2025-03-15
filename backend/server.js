@@ -87,10 +87,7 @@ async function setupAdminWallet() {
   } else if (currentDbWallet !== newAdminWallet) {
     console.log(`🔄 Updating Admin Wallet to: ${newAdminWallet}`);
     saveAdminWallet(newAdminWallet);
-    await pool.query(
-      `UPDATE users SET wallet_address = $1 WHERE account_id = 1`,
-      [newAdminWallet]
-    );
+    await pool.query(`UPDATE users SET wallet_address = $1 WHERE account_id = 1`, [newAdminWallet]);
   } else {
     console.log("✅ Admin wallet is already correct.");
   }
@@ -141,6 +138,45 @@ app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
 // Signup Route (Moved to separate file, but included here for completeness)
 app.post("/signup", require("./routes/signup")(pool, bcrypt, assignNextAvailableWallet));
 
+// Collections Routes
+app.get("/api/collections", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM collections");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching collections:", error);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+app.get("/api/collections/:category", async (req, res) => {
+  const { category } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM collections WHERE category = $1", [category]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Collection not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching collection:", error);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
+app.post("/api/collections", async (req, res) => {
+  const { category, creator, tokenIdStart, baseCid, nftCount } = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO collections (category, creator, token_id_start, base_cid, nft_count) VALUES ($1, $2, $3, $4, $5)",
+      [category, creator, tokenIdStart, baseCid, nftCount]
+    );
+    res.json({ success: true, message: "Collection created" });
+  } catch (error) {
+    console.error("Error creating collection:", error);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
+
 // Run Admin Wallet Setup and Check Users on Server Start
 async function initialize() {
   await setupAdminWallet();
@@ -149,25 +185,27 @@ async function initialize() {
 
 initialize();
 
-// Start Server with Fixed Route Debugging
+// Start Server with Route Debugging
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
   console.log("🚀 Server running on port " + PORT);
-  console.log("Registered routes:", app._router.stack
-    .filter(r => r.route || r.handle.stack)
-    .flatMap(r => {
-      if (r.route) {
-        return [`${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`];
-      }
-      if (r.handle.stack) {
-        const basePath = r.path || '';
-        return r.handle.stack.map(sub => {
-          const method = Object.keys(sub.route.methods)[0].toUpperCase();
-          const subPath = sub.route.path === '/' ? '' : sub.route.path;
-          return `${method} ${basePath}${subPath}`;
-        });
-      }
-      return [];
-    })
+  console.log(
+    "Registered routes:",
+    app._router.stack
+      .filter((r) => r.route || r.handle.stack)
+      .flatMap((r) => {
+        if (r.route) {
+          return [`${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`];
+        }
+        if (r.handle.stack) {
+          const basePath = r.path || "";
+          return r.handle.stack.map((sub) => {
+            const method = Object.keys(sub.route.methods)[0].toUpperCase();
+            const subPath = sub.route.path === "/" ? "" : sub.route.path;
+            return `${method} ${basePath}${subPath}`;
+          });
+        }
+        return [];
+      })
   );
 });
