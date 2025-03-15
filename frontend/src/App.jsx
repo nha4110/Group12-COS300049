@@ -39,6 +39,7 @@ function App() {
                                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                                 <Route path="/market/:collectionName" element={<Market />} />
                                 <Route path="/History" element={<History />} />
+                                <Route path="/market/:collectionName" element={<Market />} />
                                 <Route path="*" element={<NotFound />} />
                                 <Route path="/about" element={<About />} />
                             </Routes>
