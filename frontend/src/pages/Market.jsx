@@ -5,56 +5,103 @@ Chung Dung Toan - 105514412
 Le Anh Tuan - 105011586
 */ }
 import React, { useState, useEffect } from "react";
-import { Container, Button, Typography, Grid, CircularProgress, Box } from "@mui/material";
+import { 
+  Container, Button, Typography, Grid, CircularProgress, Box 
+} from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../scripts/AuthContext";
-import { fetchCollectionNFTs, mintNFT } from "../api/nftApi";
-import { checkConnection, loadNFTsFromCacheOrFetch, saveToCache, connectMetaMask } from "../scripts/nftUtils";
-import NFTCard from "../scripts/NFTCard";
-import NFTDialog from "../scripts/NFTDialog";
-import { motion } from "framer-motion"; // For animations
-import { Storefront } from "@mui/icons-material"; // Icon for market
+import { useAuth } from "../scripts/AuthContext"; // Auth context for user authentication state
+import { fetchCollectionNFTs, mintNFT } from "../api/nftApi"; // API functions for fetching & minting NFTs
+import { 
+  checkConnection, loadNFTsFromCacheOrFetch, saveToCache, connectMetaMask 
+} from "../scripts/nftUtils"; // Utility functions for NFT handling
+import NFTCard from "../scripts/NFTCard"; // Component to display an NFT
+import NFTDialog from "../scripts/NFTDialog"; // Dialog for NFT details & minting
+import { motion } from "framer-motion"; // Animation library
+import { Storefront } from "@mui/icons-material"; // Icon for market display
 
 const Market = () => {
-  const { collectionName } = useParams();
+  const { collectionName } = useParams(); // Get the collection name from the URL
   const navigate = useNavigate();
-  const { state } = useAuth();
-  const [nfts, setNfts] = useState([]);
-  const [allNfts, setAllNfts] = useState([]);
-  const [account, setAccount] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [mintedStatus, setMintedStatus] = useState({});
-  const [creator, setCreator] = useState(null);
-  const [totalNfts, setTotalNfts] = useState(0);
-  const [selectedNFT, setSelectedNFT] = useState(null);
+  const { state } = useAuth(); // Get the authentication state
 
+  // State variables
+  const [nfts, setNfts] = useState([]); // NFTs currently being displayed
+  const [allNfts, setAllNfts] = useState([]); // All NFTs in the collection
+  const [account, setAccount] = useState(null); // User's MetaMask account
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
+  const [mintedStatus, setMintedStatus] = useState({}); // Track minted NFTs
+  const [creator, setCreator] = useState(null); // Creator of the NFT collection
+  const [totalNfts, setTotalNfts] = useState(0); // Total NFTs in collection
+  const [selectedNFT, setSelectedNFT] = useState(null); // Selected NFT for dialog
+
+  /**
+   * Load NFTs when the component mounts or when the collection changes
+   */
   useEffect(() => {
+    // Check if MetaMask is connected
     checkConnection(setAccount);
-    loadNFTsFromCacheOrFetch(collectionName, setAllNfts, setNfts, setMintedStatus, setTotalNfts, setLoading, () =>
-      fetchCollectionNFTs(collectionName, setLoading, setError, setCreator, setTotalNfts, setNfts, setAllNfts, setMintedStatus, (nftsData, mintedStatusData, totalNftsCount) =>
-        saveToCache(collectionName, nftsData, mintedStatusData, totalNftsCount)
+
+    // Load NFTs from cache or fetch from API
+    loadNFTsFromCacheOrFetch(
+      collectionName, 
+      setAllNfts, 
+      setNfts, 
+      setMintedStatus, 
+      setTotalNfts, 
+      setLoading, 
+      () => fetchCollectionNFTs(
+        collectionName, 
+        setLoading, 
+        setError, 
+        setCreator, 
+        setTotalNfts, 
+        setNfts, 
+        setAllNfts, 
+        setMintedStatus, 
+        (nftsData, mintedStatusData, totalNftsCount) => 
+          saveToCache(collectionName, nftsData, mintedStatusData, totalNftsCount)
       )
     );
   }, [collectionName]);
 
+  /**
+   * Load all NFTs from the collection
+   */
   const loadAllNFTs = () => {
     setNfts(allNfts);
   };
 
+  /**
+   * Open NFT details dialog
+   */
   const handleCardClick = (nft) => {
     setSelectedNFT(nft);
   };
 
+  /**
+   * Handle minting an NFT
+   */
   const handleMint = (tokenId) => {
-    return mintNFT(tokenId, account, creator, collectionName, navigate, setMintedStatus, setNfts, setAllNfts, (nftsData, mintedStatusData, totalNftsCount) =>
-      saveToCache(collectionName, nftsData, mintedStatusData, totalNftsCount)
+    return mintNFT(
+      tokenId, 
+      account, 
+      creator, 
+      collectionName, 
+      navigate, 
+      setMintedStatus, 
+      setNfts, 
+      setAllNfts, 
+      (nftsData, mintedStatusData, totalNftsCount) =>
+        saveToCache(collectionName, nftsData, mintedStatusData, totalNftsCount)
     );
   };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 6, mb: 4 }}>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+        
+        {/* Header Section */}
         <Box
           sx={{
             background: "linear-gradient(135deg, #6e8efb, #a777e3)",
@@ -66,6 +113,7 @@ const Market = () => {
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.1)",
           }}
         >
+          {/* Collection Title */}
           <Typography
             variant="h3"
             component="h1"
@@ -77,6 +125,8 @@ const Market = () => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             Discover and mint unique NFTs from this collection.
           </Typography>
+
+          {/* MetaMask Connection & Refresh Button */}
           <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
             {!account ? (
               <Button
@@ -106,6 +156,7 @@ const Market = () => {
           </Box>
         </Box>
 
+        {/* NFT Listing */}
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
             <CircularProgress color="primary" />
@@ -120,11 +171,14 @@ const Market = () => {
           </Typography>
         ) : (
           <>
+            {/* NFT Cards Grid */}
             <Grid container spacing={4}>
               {nfts.map((nft) => (
                 <NFTCard key={nft.id} nft={nft} onClick={() => handleCardClick(nft)} />
               ))}
             </Grid>
+
+            {/* Load More Button */}
             {nfts.length < allNfts.length && (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <Button
@@ -144,6 +198,7 @@ const Market = () => {
           </>
         )}
 
+        {/* NFT Details Dialog */}
         {selectedNFT && (
           <NFTDialog
             open={!!selectedNFT}
