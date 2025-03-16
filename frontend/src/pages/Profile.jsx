@@ -7,26 +7,28 @@ Le Anh Tuan - 105011586
 import React, { useState, useEffect } from "react";
 import { Container, Typography, Paper, Tabs, Tab, Box, Avatar } from "@mui/material";
 import { motion } from "framer-motion"; // For animations
-import { getWalletBalance } from "../api/wallet";
-import { useAuth } from "../scripts/AuthContext";
+import { getWalletBalance } from "../api/wallet"; // API call to fetch wallet balance
+import { useAuth } from "../scripts/AuthContext"; // Authentication context
 import { useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
+import { ethers } from "ethers"; // Ethereum library
 import NFTCollectionTab from "../component/NFTCollectionTab";
 import BalanceSenderTab from "../component/BalanceSenderTab";
 import CreateNFTTab from "../component/CreateNFTTab";
 import { AccountCircle, Collections, Send, AddCircle } from "@mui/icons-material"; // Icons
 
 const Profile = () => {
-  const { state } = useAuth();
+  const { state } = useAuth(); // Get authenticated user state
   const navigate = useNavigate();
   const user = state.user;
   const accountId = user?.accountId || user?.account_id;
 
+  // State variables
   const [walletAddress, setWalletAddress] = useState("");
   const [balance, setBalance] = useState("Loading...");
   const [currentTab, setCurrentTab] = useState("NFT Collection");
   const [provider, setProvider] = useState(null);
 
+  // Initialize provider and request wallet connection
   useEffect(() => {
     const initializeProvider = async () => {
       let ethProvider;
@@ -46,6 +48,7 @@ const Profile = () => {
 
     initializeProvider();
 
+    // If user has a wallet address, fetch balance
     if (user) {
       const wallet = user.walletAddress || user.wallet_address;
       if (wallet) {
@@ -57,12 +60,14 @@ const Profile = () => {
     }
   }, [user]);
 
+  // Fetch balance when wallet address changes
   useEffect(() => {
     if (walletAddress) {
       fetchBalance(walletAddress);
     }
   }, [walletAddress]);
 
+  // Fetch wallet balance from API or blockchain provider
   const fetchBalance = async (walletAddress) => {
     if (!walletAddress) {
       setBalance("Invalid wallet address");
@@ -94,6 +99,7 @@ const Profile = () => {
     }
   };
 
+  // Handle tab change
   const handleTabChange = (event, newTab) => {
     setCurrentTab(newTab);
     if (newTab === "Balance Sender") {
@@ -101,6 +107,7 @@ const Profile = () => {
     }
   };
 
+  // If user is not authenticated, show an error message
   if (!user) {
     return (
       <Container sx={{ textAlign: "center", mt: 4 }}>
@@ -114,6 +121,7 @@ const Profile = () => {
   return (
     <Container maxWidth="md" sx={{ mt: 6, mb: 4 }}>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+        {/* Profile Card */}
         <Paper
           elevation={6}
           sx={{
@@ -124,6 +132,7 @@ const Profile = () => {
             textAlign: "center",
           }}
         >
+          {/* User Avatar */}
           <Avatar
             sx={{
               bgcolor: "#6e8efb",
@@ -136,9 +145,13 @@ const Profile = () => {
           >
             {user.username?.charAt(0).toUpperCase() || "U"}
           </Avatar>
+
+          {/* Username */}
           <Typography variant="h3" gutterBottom sx={{ fontWeight: "bold", color: "#2c3e50" }}>
             {user.username || "User Profile"}
           </Typography>
+
+          {/* User Details */}
           <Box sx={{ mt: 2 }}>
             <Typography variant="body1" sx={{ color: "#34495e" }}>
               <strong>Account ID:</strong> {accountId || "Not set"}
@@ -149,12 +162,15 @@ const Profile = () => {
             <Typography variant="body1" sx={{ color: "#34495e" }}>
               <strong>Wallet Address:</strong> {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4) || "Not set"}
             </Typography>
+
+            {/* Wallet Balance */}
             <Typography variant="h5" sx={{ mt: 2, color: "#27ae60", fontWeight: "bold" }}>
               Balance: {balance} ETH
             </Typography>
           </Box>
         </Paper>
 
+        {/* Navigation Tabs */}
         <Tabs
           value={currentTab}
           onChange={handleTabChange}
@@ -184,6 +200,7 @@ const Profile = () => {
           <Tab label="Create NFT" value="Create NFT" icon={<AddCircle />} iconPosition="start" />
         </Tabs>
 
+        {/* Display selected tab content */}
         <motion.div
           key={currentTab}
           initial={{ opacity: 0, x: 20 }}
