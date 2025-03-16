@@ -27,13 +27,13 @@ cd frontend
 
 npm install
 
-3️⃣ Initialize the Backend
+3️⃣ Initialize the Backend in first terminal
 
 cd backend
 
 npm run init
 
-4️⃣ Start Truffle & Migrate Smart Contracts
+4️⃣ Create a second terminal and start Truffle & Migrate Smart Contracts
 
 cd backend
 
@@ -41,13 +41,13 @@ npx truffle console --network development
 
 migrate --reset
 
-5️⃣ Start the Backend Server
+5️⃣ Create a third terminal and start the Backend Server
 
 cd backend
 
 node server.js
 
-6️⃣ Start the Frontend
+6️⃣ Start the Frontend on the fourth ternimal
 
 cd frontend
 
