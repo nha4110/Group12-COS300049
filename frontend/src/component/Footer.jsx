@@ -91,7 +91,7 @@ export default function Footer() {
                     {/* Project Tutorial */}
                     <Grid item xs={12} sm={4}>
                         <Typography variant="body1" fontWeight="bold" color="error.light">Project Navigation Tutorial</Typography>
-                        <AnimatedIconButton href="https://www.youtube.com/" color="red">
+                        <AnimatedIconButton href="https://youtu.be/1e3a6HyVePI" color="red">
                             <YouTube fontSize="large" />
                         </AnimatedIconButton>
                     </Grid>
