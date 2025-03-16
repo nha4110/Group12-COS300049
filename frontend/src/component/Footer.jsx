@@ -60,6 +60,8 @@ export default function Footer() {
                         <Typography variant="body1" fontWeight="bold" color="success.light">Contact Emails</Typography>
                         <Typography variant="body2">📧 Lu Nhat Hoang - <Link href="mailto:hoanglunhat31@gmail.com" color="inherit">hoanglunhat31@gmail.com</Link></Typography>
                         <Typography variant="body2">📧 Chung Dung Toan - <Link href="mailto:toanchungg@gmail.com" color="inherit">toanchungg@gmail.com</Link></Typography>
+                        <Typography variant="body2">📧 Ng Ngoc Huy Hoang - <Link href="mailto:witherboss2015@gmail.com" color="inherit">witherboss2015@gmail.com</Link></Typography>
+                        <Typography variant="body2">📧 Le Anh Tuan - <Link href="mailto:awerfast16@gmail.com" color="inherit">awerfast16@gmail.com</Link></Typography>
                     </Grid>
 
                     {/* Student IDs */}
