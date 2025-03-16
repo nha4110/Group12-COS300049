@@ -4,12 +4,22 @@ Nguyen Ngoc Huy Hoang - 105514373
 Chung Dung Toan - 105514412
 Le Anh Tuan - 105011586
 */ }
+
+
 import React from "react";
 import { Box, Container, Typography, Grid, Link, IconButton } from "@mui/material";
 import { GitHub, Email, School, YouTube, Description, Assignment } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
-// Custom Animated Icon Button
+/**
+ * Custom Animated Icon Button Component
+ * - Adds interactive animations on hover and click
+ * - Uses Framer Motion for smooth scaling and rotation effects
+ * 
+ * @param {string} href - The URL the button links to
+ * @param {ReactNode} children - The icon inside the button
+ * @param {string} color - Optional color for the icon
+ */
 const AnimatedIconButton = ({ href, children, color }) => (
     <motion.div whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }}>
         <IconButton component={Link} href={href} target="_blank" rel="noopener" sx={{ color: color || "white" }}>
@@ -18,25 +28,30 @@ const AnimatedIconButton = ({ href, children, color }) => (
     </motion.div>
 );
 
-// Footer Component
+/**
+ * Footer Component
+ * - Displays project information, contributor details, GitHub link, and helpful resources
+ */
 export default function Footer() {
     return (
         <Box 
             component="footer" 
             sx={{ 
-                bgcolor: "#1e1e2f",  // Dark modern theme
+                bgcolor: "#1e1e2f",  // Dark-themed background
                 color: "#e0e0e0", 
                 py: 4, 
                 textAlign: "center",
-                mt: { xs: 10, sm: 25 },
+                mt: { xs: 10, sm: 25 }, // Adjusted margin for different screen sizes
                 px: { xs: 2, sm: 4 },
             }}
         >
             <Container>
+                {/* Project Title */}
                 <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold", mb: 2 }}>
                     NFT Marketplace
                 </Typography>
-
+                
+                {/* Footer Grid Layout */}
                 <Grid container spacing={4} justifyContent="center">
                     {/* GitHub Repository */}
                     <Grid item xs={12} sm={4}>
@@ -89,7 +104,7 @@ export default function Footer() {
                         </AnimatedIconButton>
                     </Grid>
 
-                    {/* Assignments */}
+                    {/* List of Assignments */}
                     <Grid item xs={12}>
                         <Typography variant="body1" fontWeight="bold" color="purple">Assignments</Typography>
                         <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
@@ -99,7 +114,7 @@ export default function Footer() {
                         </motion.div>
                     </Grid>
                 </Grid>
-
+                {/* Footer Copyright Notice */}
                 <Typography variant="body2" sx={{ mt: 3, color: "#bdbdbd" }}>
                     © {new Date().getFullYear()} NFT Marketplace | Assignment for Blockchain Technology COS300049
                 </Typography>
