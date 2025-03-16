@@ -42,6 +42,7 @@ cd frontend
 npm run dev
 
 📜 Smart Contract Deployment
+
 The project uses Truffle for smart contract development and deployment.
 
 If you need to redeploy:
@@ -60,6 +61,7 @@ To connect MetaMask:
 4 - Import the generated private key.
 
 🛠 Technologies Used
+
 Frontend: React, Material-UI, Framer Motion
 
 Backend: Node.js, Express, MongoDB
