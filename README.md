@@ -72,7 +72,9 @@ Authentication: JSON Web Tokens (JWT)
 
 
 📌 Contributing
+
 Feel free to fork this repository and contribute! Open an issue for any suggestions or improvements.
 
 📜 License
+
 This project is open-source under the MIT License.
