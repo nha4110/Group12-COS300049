@@ -54,29 +54,39 @@ const SearchAppBar = () => {
     try {
       let backendBalance = null;
       let blockchainBalance = null;
-
+  
+      // Fetch from backend
       const balanceData = await getWalletBalance(walletAddress);
-      if (balanceData?.success) {
+      if (balanceData?.success && balanceData.balance) {
         backendBalance = parseFloat(balanceData.balance).toFixed(4);
         console.log(`✅ Backend balance for ${walletAddress}: ${backendBalance} ETH`);
-        setBalance(backendBalance);
       } else {
-        console.warn("⚠️ Backend fetch failed, using blockchain balance.");
+        console.warn("⚠️ Backend fetch failed or no balance returned:", balanceData?.message || "No data");
       }
-
+  
+      // Fetch from blockchain as fallback
       if (window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const balanceWei = await provider.getBalance(walletAddress, "latest");
         blockchainBalance = parseFloat(ethers.formatEther(balanceWei)).toFixed(4);
         console.log(`🔗 Blockchain balance for ${walletAddress}: ${blockchainBalance} ETH`);
       }
-
-      if (!balanceData?.success || blockchainBalance !== backendBalance) {
-        console.warn("⚠️ Using blockchain balance due to mismatch.");
+  
+      // Decide which balance to use
+      if (backendBalance) {
+        setBalance(backendBalance);
+        if (blockchainBalance && Math.abs(blockchainBalance - backendBalance) > 0.01) {
+          console.warn(`⚠️ Balance mismatch: Backend (${backendBalance} ETH) vs Blockchain (${blockchainBalance} ETH)`);
+        }
+      } else if (blockchainBalance) {
         setBalance(blockchainBalance);
+        console.warn("⚠️ Falling back to blockchain balance due to missing backend data.");
+      } else {
+        setBalance("Error");
+        console.error("❌ No balance data available from backend or blockchain.");
       }
     } catch (error) {
-      console.error("❌ Error fetching balance:", error);
+      console.error("❌ Error fetching balance:", error.message);
       setBalance("Error");
     }
   }, [walletAddress]);
