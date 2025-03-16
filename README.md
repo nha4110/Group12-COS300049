@@ -18,27 +18,33 @@ npm install
 2️⃣ Setup the Frontend
 
 cd frontend
+
 npm install
 
 3️⃣ Initialize the Backend
 
 cd backend
+
 npm run init
 
 4️⃣ Start Truffle & Migrate Smart Contracts
 
 cd backend
+
 npx truffle console --network development
+
 migrate --reset
 
 5️⃣ Start the Backend Server
 
 cd backend
+
 node server.js
 
 6️⃣ Start the Frontend
 
 cd frontend
+
 npm run dev
 
 📜 Smart Contract Deployment
