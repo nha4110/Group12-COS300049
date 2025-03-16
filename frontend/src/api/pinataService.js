@@ -1,3 +1,9 @@
+{/*
+Lu Nhat Hoang -  105234956
+Nguyen Ngoc Huy Hoang - 105514373
+Chung Dung Toan - 105514412
+Le Anh Tuan - 105011586
+*/ }
 import axios from "axios";
 
 const PINATA_API_KEY = "5d8b1175b86f0bee927f";

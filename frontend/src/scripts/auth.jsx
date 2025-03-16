@@ -1,3 +1,9 @@
+{/*
+Lu Nhat Hoang -  105234956
+Nguyen Ngoc Huy Hoang - 105514373
+Chung Dung Toan - 105514412
+Le Anh Tuan - 105011586
+*/ }
 const API_URL = "http://localhost:5000/auth"; // Backend API
 import { jwtDecode } from "jwt-decode";
 
