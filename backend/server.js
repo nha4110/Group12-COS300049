@@ -134,8 +134,7 @@ app.use("/login", loginRoutes(pool, bcrypt, jwt));
 app.use("/assets", assetsRouter);
 app.use("/buy-nft", buyNFTRoutes(pool));
 app.use("/check-nft-ownership", checkNFTOwnershipRoutes(pool));
-app.use("/transfer", authenticateToken, transferRoutes(pool)); // Simplified to pass only pool
-
+app.use("/transfer", transferRoutes(provider, ethers, pool));
 // Signup Route
 app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
@@ -224,6 +223,7 @@ app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
   try {
     console.log("Starting /api/nft-transactions endpoint");
     const walletAddress = req.user.walletAddress;
+    const { category, contractAddress } = req.query; // Add optional filters
     if (!walletAddress) {
       console.log("Wallet address missing in req.user:", req.user);
       return res.status(400).json({ success: false, message: "Wallet address not provided in token" });
@@ -231,29 +231,36 @@ app.get("/api/nft-transactions", authenticateToken, async (req, res) => {
     const normalizedWalletAddress = walletAddress.toLowerCase();
     console.log(`Fetching NFT transactions for wallet: ${normalizedWalletAddress}`);
 
-    // Test database connection
-    const testConnection = await pool.query("SELECT 1");
-    console.log("Database connection test successful:", testConnection.rows);
+    let query = `
+      SELECT 
+        transaction_id,
+        account_id,
+        sender_address AS "from",
+        recipient_address AS "to",
+        token_id,
+        nft_name,
+        amount_eth AS amount,
+        transaction_type,
+        contract_address,
+        category,
+        tx_hash,
+        created_at AS date
+      FROM transactions
+      WHERE (sender_address = $1 OR recipient_address = $1)
+        AND token_id IS NOT NULL`;
+    const values = [normalizedWalletAddress];
 
-    const result = await pool.query(
-      `SELECT 
-         transaction_id,
-         account_id,
-         sender_address AS "from",
-         recipient_address AS "to",
-         token_id,
-         nft_name,
-         amount_eth AS amount,
-         transaction_type,
-         contract_address,
-         tx_hash,
-         created_at AS date
-       FROM transactions
-       WHERE (sender_address = $1 OR recipient_address = $1)
-         AND token_id IS NOT NULL
-       ORDER BY created_at DESC`,
-      [normalizedWalletAddress]
-    );
+    if (category) {
+      query += " AND category = $2";
+      values.push(category);
+    }
+    if (contractAddress) {
+      query += " AND contract_address = $3";
+      values.push(contractAddress);
+    }
+    query += " ORDER BY created_at DESC";
+
+    const result = await pool.query(query, values);
     console.log(`NFT transactions fetched: ${result.rows.length} records`, JSON.stringify(result.rows, null, 2));
     res.json(result.rows);
   } catch (error) {
@@ -269,6 +276,23 @@ async function initialize() {
 }
 
 initialize();
+// Add this after other route definitions in server.js
+
+// Get all users for recipient selection
+app.get("/api/users", authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT username, wallet_address 
+       FROM users 
+       WHERE wallet_address IS NOT NULL 
+       ORDER BY username`
+    );
+    res.json({ success: true, users: result.rows });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
 
 // Start Server with Route Debugging
 const PORT = process.env.PORT || 8081;

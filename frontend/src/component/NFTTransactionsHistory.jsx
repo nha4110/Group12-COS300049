@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Paper, List, ListItem, Box } from "@mui/material";
+import { Paper, Typography, List, ListItem, Box, CircularProgress } from "@mui/material";
+import { motion } from "framer-motion"; // For animations
 import axios from "axios";
 import { useAuth } from "../scripts/AuthContext";
 
@@ -13,7 +14,6 @@ const NFTTransactionsHistory = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Extract walletAddress consistently
   const walletAddress = user?.walletAddress || user?.wallet_address || user?.wallet;
 
   useEffect(() => {
@@ -55,7 +55,6 @@ const NFTTransactionsHistory = () => {
 
     fetchTransactions();
 
-    // Listen for updates from Market.jsx
     const handleNftUpdate = () => {
       console.log("NFT transaction updated, refetching...");
       fetchTransactions();
@@ -72,85 +71,97 @@ const NFTTransactionsHistory = () => {
   };
 
   if (!user) {
-    return <Typography variant="h6" color="error">Unauthorized Access</Typography>;
+    return (
+      <Typography variant="h6" color="error" sx={{ textAlign: "center", mt: 4 }}>
+        Unauthorized Access
+      </Typography>
+    );
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Paper elevation={3} sx={{ padding: 3, textAlign: "center" }}>
-        <Typography variant="h5" gutterBottom>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+      <Paper
+        elevation={4}
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          background: "linear-gradient(135deg, #f9f9f9, #e8ecef)",
+          boxShadow: "0 6px 18px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: "bold", color: "#2c3e50", mb: 2 }}>
           NFT Transactions History
         </Typography>
-        <Typography variant="body1">
-          Wallet Address: {walletAddress || "Not set"}
+        <Typography variant="body1" sx={{ color: "#34495e", mb: 3 }}>
+          Wallet Address: {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : "Not set"}
         </Typography>
 
         {loading ? (
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Loading transactions...
-          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+            <CircularProgress color="primary" />
+          </Box>
         ) : error ? (
-          <Typography variant="body1" sx={{ mt: 2, color: "red" }}>
+          <Typography variant="body1" sx={{ color: "error.main", textAlign: "center" }}>
             {error}
           </Typography>
         ) : (
-          <List sx={{ mt: 2 }}>
+          <List>
             {transactions.length > 0 ? (
               transactions.map((tx, index) => (
-                <Paper
+                <motion.div
                   key={index}
-                  elevation={4}
-                  sx={{
-                    padding: 3,
-                    marginBottom: 3,
-                    borderRadius: "12px",
-                    backgroundColor: "#f5f5f5",
-                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-                    "&:hover": { boxShadow: "0px 4px 20px rgba(0, 255, 0, 0.5)" },
-                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <ListItem divider sx={{ display: "block" }}>
-                    <Typography variant="h6" sx={{ fontWeight: "bold", color: "black" }}>
-                      {tx.transaction_type === "Purchase" ? "Purchased" : "Transferred"} {tx.nft_name || "Unknown NFT"} (Token ID: {tx.token_id})
-                    </Typography>
-                    <Box sx={{ marginTop: 1 }}>
-                      <Typography variant="body1">
-                        <strong style={{ color: "#16a085" }}>From:</strong> <span style={{ color: "black" }}>{tx.from}</span>
+                  <Paper
+                    elevation={2}
+                    sx={{
+                      p: 3,
+                      mb: 2,
+                      borderRadius: 2,
+                      background: "#fff",
+                      "&:hover": { boxShadow: "0 4px 20px rgba(110, 142, 251, 0.3)" },
+                    }}
+                  >
+                    <ListItem sx={{ display: "block" }}>
+                      <Typography variant="h6" sx={{ fontWeight: "bold", color: "#2c3e50" }}>
+                        {tx.transaction_type === "Purchase" ? "Purchased" : "Transferred"} {tx.nft_name || "Unknown NFT"} (Token ID: {tx.token_id})
                       </Typography>
-                      <Typography variant="body1">
-                        <strong style={{ color: "#c0392b" }}>To:</strong> <span style={{ color: "black" }}>{tx.to}</span>
-                      </Typography>
-                      <Typography variant="body1">
-                        <strong style={{ color: "#8e44ad" }}>Amount:</strong> <span style={{ color: "black" }}>{tx.amount} ETH</span>
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          marginTop: 1,
-                          color: "black",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                        }}
-                        onClick={() => toggleTxVisibility(index)}
-                      >
-                        <strong>Tx Hash:</strong> {visibleTx[index] ? tx.tx_hash : "Click to show"}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: "black" }}>
-                        <strong>Date:</strong> {new Date(tx.date).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </ListItem>
-                </Paper>
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="body1" sx={{ color: "#34495e" }}>
+                          <strong style={{ color: "#16a085" }}>From:</strong> {tx.from.substring(0, 6)}...{tx.from.substring(tx.from.length - 4)}
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: "#34495e" }}>
+                          <strong style={{ color: "#c0392b" }}>To:</strong> {tx.to.substring(0, 6)}...{tx.to.substring(tx.to.length - 4)}
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: "#34495e" }}>
+                          <strong style={{ color: "#8e44ad" }}>Amount:</strong> {tx.amount} ETH
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ mt: 1, color: "#6e8efb", cursor: "pointer", textDecoration: "underline" }}
+                          onClick={() => toggleTxVisibility(index)}
+                        >
+                          <strong>Tx Hash:</strong> {visibleTx[index] ? `${tx.tx_hash.substring(0, 6)}...${tx.tx_hash.substring(tx.tx_hash.length - 4)}` : "Click to show"}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#34495e" }}>
+                          <strong>Date:</strong> {new Date(tx.date).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </ListItem>
+                  </Paper>
+                </motion.div>
               ))
             ) : (
-              <Typography variant="body1" sx={{ textAlign: "center" }}>
+              <Typography variant="body1" sx={{ textAlign: "center", color: "#7f8c8d" }}>
                 No NFT transactions found.
               </Typography>
             )}
           </List>
         )}
       </Paper>
-    </Container>
+    </motion.div>
   );
 };
 

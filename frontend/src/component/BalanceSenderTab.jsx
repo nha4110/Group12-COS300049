@@ -1,159 +1,182 @@
-import { useState } from "react";
-import { ethers } from "ethers"; // Import ethers
+import React, { useState, useEffect } from "react";
+import { Paper, Typography, TextField, Button, Select, MenuItem, FormControl, InputLabel, Box } from "@mui/material";
+import { motion } from "framer-motion"; // For animations
+import { ethers } from "ethers";
+import axios from "axios";
+import { Send as SendIcon } from "@mui/icons-material";
 
-const BalanceSenderTab = ({ walletAddress, web3, fetchBalance, balance }) => {
-  const [recipient, setRecipient] = useState(""); // Allow user to input recipient
-  const [amount, setAmount] = useState(""); // Allow user to input amount
+const BACKEND_URL = "http://localhost:8081";
 
-  const transferETH = async () => {
-    const token = localStorage.getItem("jwtToken");
-    if (!token) {
-      alert("Please log in to continue.");
+const BalanceSenderTab = ({ walletAddress, provider, fetchBalance, balance }) => {
+  const [recipientAddress, setRecipientAddress] = useState("");
+  const [amount, setAmount] = useState("");
+  const [gasPrice] = useState("2"); // Gwei
+  const [users, setUsers] = useState([]);
+  const [selectedUsername, setSelectedUsername] = useState("");
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem("jwtToken");
+      const response = await axios.get(`${BACKEND_URL}/api/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.success) {
+        setUsers(response.data.users);
+      } else {
+        console.error("Failed to fetch users:", response.data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      alert("Failed to load user list. Please try again.");
+    }
+  };
+
+  const handleUsernameChange = (event) => {
+    const username = event.target.value;
+    setSelectedUsername(username);
+    const user = users.find((u) => u.username === username);
+    setRecipientAddress(user ? user.wallet_address : "");
+  };
+
+  const sendDirectETH = async () => {
+    if (!walletAddress || !recipientAddress || !amount) {
+      alert("Please enter all fields.");
+      return;
+    }
+
+    if (!provider) {
+      alert("No Ethereum provider available. Please connect a wallet (e.g., MetaMask).");
       return;
     }
 
     try {
-      const txHash = await initiateMetaMaskTransfer(recipient, amount);
-      if (!txHash) throw new Error("Transaction cancelled or failed");
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
 
-      const sender = await getCurrentAccount();
-      if (!sender) throw new Error("Failed to fetch sender address");
-
-      if (sender.toLowerCase() !== walletAddress.toLowerCase()) {
-        throw new Error("Sender address does not match logged-in wallet address");
-      }
-
-      const response = await fetch("http://localhost:8081/transfer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sender_address: sender,
-          recipient_address: recipient,
-          amount_eth: amount,
-          tx_hash: txHash,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Transfer failed");
-
-      alert("Transfer logged successfully!");
-      console.log("Transfer successful:", data);
-
-      if (fetchBalance) {
-        fetchBalance(walletAddress);
-      }
-    } catch (error) {
-      console.error("Transfer error:", error.message);
-      if (error.message.includes("Token expired")) {
-        alert("Session expired. Please log in again");
-        localStorage.removeItem("jwtToken");
-      } else {
-        alert(`Error: ${error.message}`);
-      }
-    }
-  };
-
-  const getCurrentAccount = async () => {
-    if (window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        return accounts[0];
-      } catch (error) {
-        console.error("Error fetching account:", error);
-        return null;
-      }
-    }
-    return null;
-  };
-
-  const initiateMetaMaskTransfer = async (recipient, amount) => {
-    if (!window.ethereum) {
-      alert("Please install MetaMask!");
-      return null;
-    }
-
-    try {
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      const sender = accounts[0];
-
-      if (!recipient || !recipient.match(/^0x[a-fA-F0-9]{40}$/)) {
-        alert("Invalid recipient address");
-        return null;
-      }
-
-      const amountEth = parseFloat(amount);
-      if (isNaN(amountEth) || amountEth <= 0) {
-        alert("Invalid amount: Must be a positive number");
-        return null;
-      }
-
-      const currentBalance = parseFloat(balance);
-      if (isNaN(currentBalance) || currentBalance < amountEth) {
-        alert(`Insufficient balance: You have ${currentBalance} ETH, but tried to send ${amountEth} ETH`);
-        return null;
-      }
-
-      let weiValue;
-      if (ethers && ethers.utils && ethers.utils.parseEther) {
-        weiValue = ethers.utils.parseEther(amount.toString()).toString();
-        console.log(`Converted ${amount} ETH to ${weiValue} Wei using ethers.utils.parseEther`);
-      } else if (ethers && ethers.parseEther) {
-        weiValue = ethers.parseEther(amount.toString()).toString();
-        console.log(`Converted ${amount} ETH to ${weiValue} Wei using ethers.parseEther`);
-      } else {
-        weiValue = Math.floor(amountEth * 1e18).toString();
-        console.log(`Converted ${amount} ETH to ${weiValue} Wei using manual conversion`);
+      if (signerAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        alert("Your MetaMask account does not match the wallet address provided. Please switch accounts.");
+        return;
       }
 
       const tx = {
-        from: sender,
-        to: recipient,
-        value: weiValue,
-        gasLimit: "0x5208", // Hex for 21000
+        to: recipientAddress,
+        value: ethers.parseEther(amount),
+        gasPrice: ethers.parseUnits(gasPrice, "gwei"),
       };
 
-      console.log("Transaction object:", tx); // Debug the full transaction object
-      const txHash = await window.ethereum.request({
-        method: "eth_sendTransaction",
-        params: [tx],
-      });
+      const txResponse = await signer.sendTransaction(tx);
+      await txResponse.wait();
 
-      console.log("Transaction sent:", txHash);
-      return txHash;
+      const newTransaction = {
+        sender: walletAddress,
+        recipient: recipientAddress,
+        amount,
+        hash: txResponse.hash,
+        date: new Date().toISOString(),
+        type: "balanceTransfer",
+      };
+
+      const existingTransactions = JSON.parse(localStorage.getItem("balanceTransactions")) || [];
+      localStorage.setItem("balanceTransactions", JSON.stringify([...existingTransactions, newTransaction]));
+
+      alert("Transaction successful! Reloading page...");
+      fetchBalance(walletAddress); // Update balance without reload
+      window.dispatchEvent(new Event("balanceUpdated"));
     } catch (error) {
-      console.error("MetaMask error:", error.message);
-      if (error.code === 4001) {
-        alert("Transaction cancelled by user");
-      } else if (error.code === -32603) {
-        alert("Transaction failed: Insufficient funds or network error");
-      } else {
-        alert(`MetaMask error: ${error.message}`);
-      }
-      return null;
+      console.error("Transaction Error:", error);
+      alert(`Transaction Failed: ${error.message}`);
     }
   };
 
   return (
-    <div>
-      <input
-        type="text"
-        placeholder="Recipient Address (e.g., 0x574779E506d27EE70330C13D911881310543dbed)"
-        value={recipient}
-        onChange={(e) => setRecipient(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Amount (ETH)"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        step="0.01"
-      />
-      <button onClick={transferETH}>Send ETH</button>
-    </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+      <Paper
+        elevation={4}
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          background: "linear-gradient(135deg, #f9f9f9, #e8ecef)",
+          boxShadow: "0 6px 18px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <Typography
+          variant="h5"
+          gutterBottom
+          sx={{ fontWeight: "bold", color: "#2c3e50", display: "flex", alignItems: "center", gap: 1 }}
+        >
+          <SendIcon /> Send ETH
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#7f8c8d", mb: 3 }}>
+          Transfer ETH directly to another wallet.
+        </Typography>
+
+        <TextField
+          label="Your Wallet Address"
+          fullWidth
+          margin="normal"
+          value={walletAddress}
+          InputProps={{ readOnly: true }}
+          sx={{ bgcolor: "#fff", borderRadius: 1 }}
+        />
+        <FormControl fullWidth margin="normal">
+          <InputLabel sx={{ color: "#34495e" }}>Recipient Username</InputLabel>
+          <Select
+            value={selectedUsername}
+            onChange={handleUsernameChange}
+            label="Recipient Username"
+            sx={{ bgcolor: "#fff", borderRadius: 1 }}
+          >
+            <MenuItem value="">
+              <em>Select a user</em>
+            </MenuItem>
+            {users.map((user) => (
+              <MenuItem key={user.wallet_address} value={user.username}>
+                {user.username}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          label="Recipient Address"
+          fullWidth
+          margin="normal"
+          value={recipientAddress}
+          InputProps={{ readOnly: true }}
+          sx={{ bgcolor: "#fff", borderRadius: 1 }}
+        />
+        <TextField
+          label="Amount (ETH)"
+          fullWidth
+          margin="normal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          type="number"
+          sx={{ bgcolor: "#fff", borderRadius: 1 }}
+        />
+        <Typography variant="body1" sx={{ mt: 2, color: "#27ae60" }}>
+          Current Balance: {balance} ETH
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={sendDirectETH}
+          sx={{
+            mt: 3,
+            py: 1.5,
+            borderRadius: 2,
+            background: "linear-gradient(90deg, #6e8efb, #a777e3)",
+            "&:hover": { background: "linear-gradient(90deg, #5d78e6, #9366d2)" },
+          }}
+          startIcon={<SendIcon />}
+        >
+          Send ETH
+        </Button>
+      </Paper>
+    </motion.div>
   );
 };
 

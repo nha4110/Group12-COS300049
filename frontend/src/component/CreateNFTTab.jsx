@@ -1,16 +1,11 @@
 import React, { useState } from "react";
 import { Paper, Typography, TextField, Button, Box, CircularProgress, Divider } from "@mui/material";
-import { ethers } from "ethers";
 import { uploadToPinata } from "../api/pinataService";
 import { useNavigate } from "react-router-dom";
-import contractData from "../../../backend/build/contracts/MyNFT.json";
 
-const CONTRACT_ADDRESS = "0x84643357E0de364Acc9659021A1920362e1255D5";
-const ABI = contractData.abi;
-const PINATA_GATEWAY = "https://gray-magic-tortoise-619.mypinata.cloud/ipfs/";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8081";
 
-const CreateNFTTab = ({ walletAddress, web3 }) => {
+const CreateNFTTab = ({ walletAddress }) => {
   const navigate = useNavigate();
   const [collectionName, setCollectionName] = useState("");
   const [nfts, setNfts] = useState([{ pngFile: null, name: "", description: "", jsonBlob: null }]);
@@ -62,7 +57,7 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
       alert("Please enter a collection name.");
       return;
     }
-    if (nfts.some(nft => !nft.pngFile || !nft.jsonBlob)) {
+    if (nfts.some((nft) => !nft.pngFile || !nft.jsonBlob)) {
       alert("Please upload a PNG and generate JSON for all NFTs before uploading.");
       return;
     }
@@ -110,89 +105,18 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
       }
 
       console.log("Collection saved:", collectionData);
+
+      // Reset state and refresh the page
+      setCollectionName("");
+      setNfts([{ pngFile: null, name: "", description: "", jsonBlob: null }]);
+      setBaseCid("");
+      setNextTokenId(nextTokenId + nfts.length); // Increment for next collection
+      window.location.reload(); // Ctrl + R equivalent
     } catch (error) {
       console.error("Upload error:", error);
       alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const mintNFT = async (index) => {
-    if (!baseCid || !walletAddress) {
-      alert("Please upload the collection and connect your wallet first.");
-      return;
-    }
-
-    const tokenId = nextTokenId + index;
-    const metadataURI = `${PINATA_GATEWAY}${baseCid}/${collectionName}/${tokenId}.json`;
-
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      const tx = await contract.payToMint(walletAddress, metadataURI, tokenId, {
-        value: ethers.parseEther("0.05"),
-      });
-
-      alert(`Minting NFT ${nfts[index].name} (Token ID: ${tokenId}) submitted...`);
-      const receipt = await tx.wait();
-
-      const token = localStorage.getItem("jwtToken");
-      const transactionData = {
-        hash: receipt.hash,
-        from: walletAddress,
-        to: CONTRACT_ADDRESS,
-        amount: "0.05",
-        gas: ethers.formatUnits(receipt.gasUsed, "ether"),
-        date: new Date().toISOString(),
-      };
-      const assetData = {
-        walletAddress,
-        nftId: tokenId,
-        nftName: nfts[index].name,
-        price: "0.05",
-        tokenID: tokenId,
-        contractAddress: CONTRACT_ADDRESS,
-        imageUrl: `${PINATA_GATEWAY}${baseCid}/${collectionName}/${tokenId}.png`,
-        category: collectionName,
-        txHash: receipt.hash,
-        creator: walletAddress,
-      };
-
-      await Promise.all([
-        fetch(`${BACKEND_URL}/api/transactions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(transactionData),
-        }),
-        fetch(`${BACKEND_URL}/buy-nft`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(assetData),
-        }),
-      ]);
-
-      alert(`NFT ${nfts[index].name} minted successfully!`);
-      window.dispatchEvent(new Event("balanceUpdated"));
-      window.dispatchEvent(new Event("nftCacheUpdated"));
-      if (index === nfts.length - 1) {
-        setCollectionName("");
-        setNfts([{ pngFile: null, name: "", description: "", jsonBlob: null }]);
-        setBaseCid("");
-        setNextTokenId(nextTokenId + nfts.length); // Increment for next collection
-        navigate("/home");
-      }
-    } catch (error) {
-      console.error("Minting error:", error);
-      alert(`Minting failed: ${error.message}`);
     }
   };
 
@@ -202,7 +126,7 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
         Create Your NFT Collection
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Step 1: Name your collection and add NFTs. Step 2: Upload everything. Step 3: Mint your NFTs!
+        Step 1: Name your collection and add NFTs. Step 2: Upload everything to IPFS and save to the database!
       </Typography>
 
       <TextField
@@ -260,17 +184,6 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
               )}
             </>
           )}
-          {baseCid && (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => mintNFT(index)}
-              sx={{ mt: 2 }}
-              disabled={!nft.jsonBlob}
-            >
-              Mint NFT #{index + 1} (0.05 ETH)
-            </Button>
-          )}
         </Box>
       ))}
 
@@ -279,7 +192,7 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
         color="secondary"
         onClick={addMoreNFT}
         sx={{ mt: 2, mr: 2 }}
-        disabled={uploading || nfts.some(nft => !nft.jsonBlob)}
+        disabled={uploading || nfts.some((nft) => !nft.jsonBlob)}
       >
         Add Another NFT
       </Button>
@@ -289,7 +202,7 @@ const CreateNFTTab = ({ walletAddress, web3 }) => {
         color="primary"
         onClick={handleUploadCollection}
         sx={{ mt: 2 }}
-        disabled={uploading || !collectionName || nfts.some(nft => !nft.pngFile || !nft.jsonBlob)}
+        disabled={uploading || !collectionName || nfts.some((nft) => !nft.pngFile || !nft.jsonBlob)}
       >
         {uploading ? <CircularProgress size={24} /> : "Upload Collection"}
       </Button>

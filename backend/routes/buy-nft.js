@@ -29,15 +29,15 @@ module.exports = (pool) => {
       tokenID,
       contractAddress,
       imageUrl,
-      category,
+      category, // Already included in payload
       txHash,
       creator,
     } = req.body;
 
     console.log("Received payload:", req.body);
 
-    if (!walletAddress || !tokenID || !contractAddress || !txHash) {
-      return res.status(400).json({ success: false, message: "Missing required fields: walletAddress, tokenID, contractAddress, txHash" });
+    if (!walletAddress || !tokenID || !contractAddress || !txHash || !category) {
+      return res.status(400).json({ success: false, message: "Missing required fields: walletAddress, tokenID, contractAddress, txHash, category" });
     }
 
     try {
@@ -77,10 +77,10 @@ module.exports = (pool) => {
           walletAddress,
           tokenID,
           nftName || "Unnamed NFT",
-          price ? parseFloat(price) : 0.05, // Ensure numeric
+          price ? parseFloat(price) : 0.05,
           contractAddress,
           imageUrl || "",
-          category || "Art",
+          category,
           txHash,
         ]
       );
@@ -89,10 +89,10 @@ module.exports = (pool) => {
         return res.status(400).json({ success: false, message: "NFT already recorded by another request" });
       }
 
-      // Insert into transactions
+      // Insert into transactions with category
       const insertTx = await pool.query(
-        `INSERT INTO transactions (account_id, sender_address, recipient_address, token_id, nft_name, amount_eth, transaction_type, contract_address, tx_hash, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        `INSERT INTO transactions (account_id, sender_address, recipient_address, token_id, nft_name, amount_eth, transaction_type, contract_address, category, tx_hash, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
          ON CONFLICT (tx_hash) DO NOTHING
          RETURNING *`,
         [
@@ -101,9 +101,10 @@ module.exports = (pool) => {
           contractAddress,
           tokenID,
           nftName || "Unnamed NFT",
-          price ? parseFloat(price) : 0.05, // Ensure numeric
+          price ? parseFloat(price) : 0.05,
           "Purchase",
           contractAddress,
+          category, // Add category here
           txHash,
         ]
       );
@@ -123,13 +124,6 @@ module.exports = (pool) => {
             ? "Transaction already recorded"
             : "Duplicate entry",
           details: error.detail,
-        });
-      }
-      if (error.message.includes("ON CONFLICT")) {
-        return res.status(500).json({
-          success: false,
-          message: "Database configuration error: missing unique constraint on assets table",
-          details: error.message,
         });
       }
       res.status(500).json({ success: false, message: "Failed to purchase NFT", details: error.message });
