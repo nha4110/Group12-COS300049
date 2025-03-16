@@ -50,6 +50,7 @@ If you need to redeploy:
 npx truffle migrate --reset
 
 🔗 MetaMask & Web3 Guide
+
 To connect MetaMask:
 
 1 - Install MetaMask from https://metamask.io/
