@@ -2,3 +2,5 @@
 **/node_modules/
 /backend/build/contracts/
 /backend/build/
+backend/ganache-data/LOG
+backend/ganache-data/000003.log
