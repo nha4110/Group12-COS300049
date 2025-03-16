@@ -52,16 +52,24 @@ npx truffle migrate --reset
 To connect MetaMask:
 
 1 - Install MetaMask from https://metamask.io/
+
 2 - Create a new Ethereum wallet.
+
 3 - Switch to Localhost 8545 network.
+
 4 - Import the generated private key.
 
 🛠 Technologies Used
 Frontend: React, Material-UI, Framer Motion
+
 Backend: Node.js, Express, MongoDB
+
 Blockchain: Solidity, Truffle, Web3.js
+
 Storage: IPFS (Pinata)
+
 Authentication: JSON Web Tokens (JWT)
+
 
 📌 Contributing
 Feel free to fork this repository and contribute! Open an issue for any suggestions or improvements.
