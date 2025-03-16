@@ -12,6 +12,7 @@ Web3 & MetaMask Support
 Before you begin, please download these below:
 
 Node.js (v20.18.2) (It has to be this exact version, newer or older versions might cause the website to break)
+
 Solidity (v8.20)
 
 🚀 Getting Started
