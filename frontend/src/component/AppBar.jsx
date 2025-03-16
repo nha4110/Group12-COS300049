@@ -20,32 +20,35 @@ import {
   Divider,
   Box,
 } from "@mui/material";
-import { useAuth } from "../scripts/AuthContext";
-import { useLocation, useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
-import { getWalletBalance } from "../api/wallet";
+import { useAuth } from "../scripts/AuthContext"; // Custom hook for authentication context
+import { useLocation, useNavigate } from "react-router-dom"; // React Router hooks for navigation
+import { ethers } from "ethers"; // Ethers.js for blockchain interactions
+import { getWalletBalance } from "../api/wallet"; // API call to fetch wallet balance
 import { motion } from "framer-motion"; // For animations
-import { Menu as MenuIcon, Home, Person, History, Logout } from "@mui/icons-material"; // Icons
+import { Menu as MenuIcon, Home, Person, History, Logout } from "@mui/icons-material"; // Material-UI icons
 
 const SearchAppBar = () => {
-  const { state, logout } = useAuth();
-  const [balance, setBalance] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const walletAddress = state?.user?.walletAddress || state?.user?.wallet_address;
+  const { state, logout } = useAuth(); // Access auth state and logout function
+  const [balance, setBalance] = useState(null); // State for wallet balance
+  const [sidebarOpen, setSidebarOpen] = useState(false); // State for sidebar visibility
+  const location = useLocation(); // Get current route location
+  const navigate = useNavigate(); // Navigation function
+  const walletAddress = state?.user?.walletAddress || state?.user?.wallet_address; // User's wallet address
 
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  const [anchorEl, setAnchorEl] = useState(null); // Anchor element for profile menu
+  const open = Boolean(anchorEl); // Boolean to control menu open state
 
+  // Open profile menu
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
+  // Close profile menu
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
 
+  // Fetch wallet balance from backend and blockchain
   const fetchBalance = useCallback(async () => {
     if (!walletAddress) {
       setBalance(null);
@@ -91,6 +94,7 @@ const SearchAppBar = () => {
     }
   }, [walletAddress]);
 
+  // Effect to fetch balance on mount or user change, and listen for balance updates
   useEffect(() => {
     if (state.user) {
       fetchBalance();
@@ -105,23 +109,25 @@ const SearchAppBar = () => {
     return () => window.removeEventListener("balanceUpdated", handleBalanceUpdate);
   }, [state.user, fetchBalance]);
 
+  // Handle logout action
   const handleLogout = () => {
     logout();
     handleMenuClose();
     navigate("/login");
   };
 
+  // Toggle sidebar visibility
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
   return (
     <AppBar
-      position="static"
+      position="static" // Fixed position at top
       sx={{
-        background: "linear-gradient(90deg, #2c3e50, #34495e)",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
-        padding: "0 16px",
+        background: "linear-gradient(90deg, #2c3e50, #34495e)", // Gradient background
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)", // Shadow effect
+        padding: "0 16px", // Horizontal padding
       }}
     >
       <Toolbar sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -137,13 +143,13 @@ const SearchAppBar = () => {
         <Typography
           variant="h6"
           sx={{
-            flexGrow: 1,
+            flexGrow: 1, // Takes available space
             fontWeight: "bold",
             color: "white",
             cursor: "pointer",
             "&:hover": { color: "#6e8efb" }, // Only color change on hover
           }}
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/")} // Navigate to home
         >
           NFT Marketplace
         </Typography>
@@ -153,12 +159,12 @@ const SearchAppBar = () => {
           <Typography
             variant="body1"
             sx={{
-              mr: 3,
-              color: "#27ae60",
+              mr: 3, // Margin right
+              color: "#27ae60", // Green color
               fontWeight: "bold",
-              bgcolor: "rgba(255, 255, 255, 0.1)",
-              p: 1,
-              borderRadius: 1,
+              bgcolor: "rgba(255, 255, 255, 0.1)", // Light background
+              p: 1, // Padding
+              borderRadius: 1, // Rounded corners
             }}
           >
             <strong>ETH:</strong> {balance === "Error" ? "Error" : `${balance} ETH`}
@@ -171,14 +177,14 @@ const SearchAppBar = () => {
             <IconButton
               onClick={handleMenuOpen}
               component={motion.div}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.1 }} // Scale up on hover
+              whileTap={{ scale: 0.95 }} // Scale down on tap
             >
               <Avatar
                 sx={{
-                  bgcolor: "#6e8efb",
+                  bgcolor: "#6e8efb", // Background color
                   fontWeight: "bold",
-                  border: "2px solid white",
+                  border: "2px solid white", // White border
                 }}
               >
                 {state?.user?.username ? state.user.username.charAt(0).toUpperCase() : "?"}
@@ -190,9 +196,9 @@ const SearchAppBar = () => {
               onClose={handleMenuClose}
               PaperProps={{
                 sx: {
-                  borderRadius: 2,
-                  background: "linear-gradient(135deg, #ffffff, #f0f4ff)",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                  borderRadius: 2, // Rounded corners
+                  background: "linear-gradient(135deg, #ffffff, #f0f4ff)", // Gradient background
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)", // Shadow effect
                 },
               }}
             >
@@ -217,14 +223,14 @@ const SearchAppBar = () => {
           <Typography
             variant="body1"
             sx={{
-              color: "#6e8efb",
+              color: "#6e8efb", // Blue color
               cursor: "pointer",
               fontWeight: "bold",
-              "&:hover": { color: "#a777e3" },
+              "&:hover": { color: "#a777e3" }, // Purple on hover
             }}
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login")} // Navigate to login
             component={motion.div}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05 }} // Slight scale on hover
           >
             Login
           </Typography>
@@ -235,17 +241,17 @@ const SearchAppBar = () => {
       <Drawer anchor="left" open={sidebarOpen} onClose={toggleSidebar}>
         <Box
           sx={{
-            width: 250,
-            background: "linear-gradient(135deg, #2c3e50, #34495e)",
-            height: "100%",
+            width: 250, // Fixed width
+            background: "linear-gradient(135deg, #2c3e50, #34495e)", // Gradient background
+            height: "100%", // Full height
             color: "white",
-            p: 2,
+            p: 2, // Padding
           }}
           component={motion.div}
-          initial={{ x: -250 }}
-          animate={{ x: 0 }}
-          exit={{ x: -250 }}
-          transition={{ duration: 0.5 }}
+          initial={{ x: -250 }} // Start off-screen
+          animate={{ x: 0 }} // Slide in
+          exit={{ x: -250 }} // Slide out
+          transition={{ duration: 0.5 }} // Animation duration
         >
           <Typography
             variant="h6"
@@ -253,7 +259,7 @@ const SearchAppBar = () => {
           >
             Menu
           </Typography>
-          <Divider sx={{ bgcolor: "#7f8c8d", mb: 2 }} />
+          <Divider sx={{ bgcolor: "#7f8c8d", mb: 2 }} /> {/* Divider line */}
           <List>
             <ListItem
               onClick={() => {
@@ -262,13 +268,13 @@ const SearchAppBar = () => {
               }}
               sx={{
                 borderRadius: 2,
-                "&:hover": { bgcolor: "#16a085", cursor: "pointer" },
-                mb: 1,
+                "&:hover": { bgcolor: "#16a085", cursor: "pointer" }, // Teal on hover
+                mb: 1, // Margin bottom
               }}
               component={motion.div}
-              whileHover={{ scale: 1.03 }}
+              whileHover={{ scale: 1.03 }} // Slight scale on hover
             >
-              <Home sx={{ mr: 1 }} />
+              <Home sx={{ mr: 1 }} /> {/* Home icon */}
               <ListItemText primary="Home" />
             </ListItem>
             <ListItem
@@ -284,7 +290,7 @@ const SearchAppBar = () => {
               component={motion.div}
               whileHover={{ scale: 1.03 }}
             >
-              <Person sx={{ mr: 1 }} />
+              <Person sx={{ mr: 1 }} /> {/* Person icon */}
               <ListItemText primary="Profile" />
             </ListItem>
             <ListItem
@@ -300,7 +306,7 @@ const SearchAppBar = () => {
               component={motion.div}
               whileHover={{ scale: 1.03 }}
             >
-              <History sx={{ mr: 1 }} />
+              <History sx={{ mr: 1 }} /> {/* History icon */}
               <ListItemText primary="History" />
             </ListItem>
             {state.user && (
@@ -311,12 +317,12 @@ const SearchAppBar = () => {
                 }}
                 sx={{
                   borderRadius: 2,
-                  "&:hover": { bgcolor: "#c0392b", cursor: "pointer" },
+                  "&:hover": { bgcolor: "#c0392b", cursor: "pointer" }, // Red on hover
                 }}
                 component={motion.div}
                 whileHover={{ scale: 1.03 }}
               >
-                <Logout sx={{ mr: 1 }} />
+                <Logout sx={{ mr: 1 }} /> {/* Logout icon */}
                 <ListItemText primary="Logout" />
               </ListItem>
             )}
