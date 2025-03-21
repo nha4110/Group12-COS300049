@@ -19,6 +19,7 @@ Solidity (v8.20)
 
 1️⃣ Install Dependencies
 
+cd backend
 npm install
 
 2️⃣ Setup the Frontend
