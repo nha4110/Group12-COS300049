@@ -14,7 +14,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8081";
 const CreateNFTTab = ({ walletAddress }) => {
   const navigate = useNavigate(); // Navigation function
   const [collectionName, setCollectionName] = useState(""); // State for collection name
-  const [nfts, setNfts] = useState([{ pngFile: null, name: "", description: "", jsonBlob: null }]); // State for NFT data
+  const [nfts, setNfts] = useState([{ pngFile: null, name: "", description: "", price: "0.5", jsonBlob: null }]); // State for NFT data
   const [uploading, setUploading] = useState(false); // State to track upload status
   const [baseCid, setBaseCid] = useState(""); // State for IPFS base CID
   const [nextTokenId, setNextTokenId] = useState(1); // State for starting token ID of the collection
@@ -44,10 +44,21 @@ const CreateNFTTab = ({ walletAddress }) => {
       alert("Please upload a PNG and enter a name and description first."); // Validate required fields
       return;
     }
+
+    let price = parseFloat(nft.price); // Convert price to a number
+
+    if (isNaN(price)) {
+      price = 0.5; // Default price to 0.5 ETH if empty
+    } else if (price < 0.05) {
+      alert("Price must be at least 0.05 ETH.");
+      return;
+    }
+
     const tokenId = nextTokenId + index; // Calculate token ID
     const jsonData = {
       name: nft.name,
       description: nft.description,
+      price: nft.price, // Add price to JSON
       image: `${collectionName}/${tokenId}.png`, // Image path for IPFS
     };
     const jsonBlob = new Blob([JSON.stringify(jsonData, null, 2)], { type: "application/json" }); // Create JSON blob
@@ -181,6 +192,17 @@ const CreateNFTTab = ({ walletAddress }) => {
                 onChange={(e) => handleInputChange(index, "description", e.target.value)} // Update NFT description
                 helperText="Describe your NFT (e.g., 'The name said it all')."
               />
+
+              <TextField
+                label="Price (ETH)"
+                fullWidth
+                margin="normal"
+                type="number"
+                value={nft.price}
+                onChange={(e) => handleInputChange(index, "price", e.target.value)}
+                helperText="Enter the price in ETH for this NFT."
+              />
+
               <Button
                 variant="outlined"
                 onClick={() => generateJson(index)} // Generate JSON metadata

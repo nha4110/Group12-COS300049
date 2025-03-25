@@ -12,9 +12,14 @@ const PINATA_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
 export const uploadToPinata = async (formData, name, group) => {
   try {
+    let price = "0.5"; // Default price if not provided
+
     // Log FormData contents
     for (let [key, value] of formData.entries()) {
       console.log(`FormData entry: ${key} = ${value.name || value}`);
+      if (key === "price") {
+        price = value; // Set price from FormData
+      }
     }
 
     const response = await axios.post(PINATA_URL, formData, {
@@ -26,6 +31,7 @@ export const uploadToPinata = async (formData, name, group) => {
       params: {
         pinataMetadata: JSON.stringify({
           name: `${group}_${name}`, // e.g., "invincible_6_collection"
+          price: price, // Include price in metadata
         }),
         pinataOptions: JSON.stringify({
           cidVersion: 1,
