@@ -18,6 +18,8 @@ const PINATA_GATEWAY = "https://gray-magic-tortoise-619.mypinata.cloud/ipfs/";
 const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintNFT, mintedStatus }) => {
   const [balance, setBalance] = useState(null);
   const [gasEstimate, setGasEstimate] = useState(null);
+  const price = nft.metadata?.price ? nft.metadata.price : "0.1";
+
 
   useEffect(() => {
     if (open && account) {
@@ -110,7 +112,7 @@ const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintN
                 <strong>Token ID:</strong> {nft.id}
               </Typography>
               <Typography sx={{ color: "#34495e" }}>
-                <strong>Price:</strong> 0.05 ETH
+                <strong>Price:</strong> {`${price} ETH`}
               </Typography>
               <Typography sx={{ color: "#34495e" }}>
                 <strong>Gas Estimate:</strong> {gasEstimate ? `${parseFloat(gasEstimate).toFixed(6)} ETH` : "Calculating..."}
@@ -142,7 +144,7 @@ const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintN
                   }}
                   startIcon={<ShoppingCart />}
                 >
-                  {mintedStatus[nft.id] ? "Minted/Owned" : "Buy NFT (0.05 ETH)"}
+                  {mintedStatus[nft.id] ? "Minted/Owned" : `Buy NFT (${price} ETH)`}
                 </Button>
               </Box>
             </Grid>
