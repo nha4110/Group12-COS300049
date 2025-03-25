@@ -18,7 +18,7 @@ const PINATA_GATEWAY = "https://gray-magic-tortoise-619.mypinata.cloud/ipfs/";
 const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintNFT, mintedStatus }) => {
   const [balance, setBalance] = useState(null);
   const [gasEstimate, setGasEstimate] = useState(null);
-  const price = nft.metadata?.price ? nft.metadata.price : "0.1";
+  const price = nft.metadata?.price ? nft.metadata.price : "0.05";
 
 
   useEffect(() => {
@@ -36,6 +36,8 @@ const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintN
       const balanceWei = await provider.getBalance(account);
       const balanceEth = ethers.formatEther(balanceWei);
       setBalance(balanceEth);
+
+      
 
       const metadataURI = `${PINATA_GATEWAY}${nft.base_cid}/${nft.id}.json`;
       const gas = await contract.payToMint.estimateGas(account, metadataURI, nft.id, {
@@ -123,7 +125,7 @@ const NFTDialog = ({ open, onClose, nft, account, creator, collectionName, mintN
               <Typography sx={{ color: "#27ae60" }}>
                 <strong>Balance After:</strong>{" "}
                 {balance && gasEstimate
-                  ? (parseFloat(balance) - 0.05 - parseFloat(gasEstimate)).toFixed(6) + " ETH"
+                  ? (parseFloat(balance) - price - parseFloat(gasEstimate)).toFixed(6) + " ETH"
                   : "N/A"}
               </Typography>
               <Typography sx={{ color: "#34495e" }}>

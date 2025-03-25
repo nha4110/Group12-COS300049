@@ -134,6 +134,22 @@ export const mintNFT = async (
       return;
     }
 
+    const fetchNFTPrice = async (metadataURI) => {
+      try {
+        const response = await axios.get(metadataURI, { timeout: 10000 });
+        if (response.data && response.data.price) {
+          return response.data.price.toString(); // Ensure price is always a string
+        } else {
+          console.warn(`Price not found in metadata: ${metadataURI}`);
+          return "0.05"; // Default fallback price
+        }
+      } catch (error) {
+        console.error(`Failed to fetch NFT metadata: ${error.message}`);
+        return "0.05"; // Default fallback price in case of failure
+      }
+    };
+    const price = await fetchNFTPrice(metadataURI); // Fetch price from metadata
+
     const isMinted = await contract.isMinted(tokenId);
     if (isMinted) {
       alert(`Token ${tokenId} is already minted on-chain.`);
@@ -147,12 +163,12 @@ export const mintNFT = async (
     }
 
     const gasEstimate = await contract.payToMint.estimateGas(account, metadataURI, tokenId, {
-      value: ethers.parseEther("0.05"),
+      value: ethers.parseEther(price),
     });
     const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
     const tx = await contract.payToMint(account, metadataURI, tokenId, {
-      value: ethers.parseEther("0.05"),
+      value: ethers.parseEther(price),
       gasLimit: gasLimit,
     });
 
@@ -168,13 +184,14 @@ export const mintNFT = async (
       txHash: receipt.hash,
       from: receipt.from,
       to: CONTRACT_ADDRESS,
-      amount: "-0.05 ETH",
+      amount: price,
       gasUsed: gasUsed.toString(),
       totalGasFee: totalGasFeeEth,
     };
 
     const metadataUrl = `${PINATA_GATEWAY}${base_cid}/${tokenId}.json`;
     const metadataResponse = await axios.get(metadataUrl);
+    
     const nftName = metadataResponse.data.name || `NFT ${tokenId}`;
     const imageUrl = `${PINATA_GATEWAY}${base_cid}/${tokenId}.png`;
 
@@ -182,7 +199,7 @@ export const mintNFT = async (
       walletAddress: account,
       nftId: tokenId,
       nftName,
-      price: "0.05",
+      price: price,
       tokenID: tokenId,
       contractAddress: CONTRACT_ADDRESS,
       imageUrl,
@@ -210,7 +227,7 @@ export const mintNFT = async (
     if (creator) {
       await signer.sendTransaction({
         to: creator,
-        value: ethers.parseEther("0.05"),
+        value: ethers.parseEther(price),
       });
     }
 
