@@ -1,3 +1,4 @@
+-- connet to reset the db only
 -- Drop existing tables if they exist (in reverse order due to dependencies)
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS assets;
@@ -64,9 +65,9 @@ CREATE TABLE transactions (
 -- Insert the "out" collection (unchanged)
 INSERT INTO collections (category, creator, token_id_start, base_cid, nft_count)
 VALUES (
-    'out',
+    'The Flawed',
     NULL,
     1,
-    'bafybeif7oettpy7l7j7pe4lpcqzr3hfum7dpd25q4yx5a3moh7x4ubfhqy',
-    60
+    'bafybeih4uyztirh4nyhxbnjga57mimsumoyej3mmciceub2etymqq7u4km',
+    25
 );

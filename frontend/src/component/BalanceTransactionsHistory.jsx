@@ -39,7 +39,7 @@ const BalanceTransactionsHistory = () => {
           Balance Transactions History {/* Title */}
         </Typography>
         <List>
-          {transactions.length > 0 ? ( // Check if there are transactions to display
+          {transactions.length > 0 ? (
             transactions.map((tx, index) => (
               <motion.div
                 key={index}
@@ -59,30 +59,30 @@ const BalanceTransactionsHistory = () => {
                 >
                   <ListItem sx={{ display: "block" }}>
                     <Typography variant="h6" sx={{ fontWeight: "bold", color: "#2c3e50" }}>
-                      Sent {tx.amount} ETH {/* Transaction amount */}
+                      Sent {tx.amount || "N/A"} ETH {/* Transaction amount */}
                     </Typography>
                     <Box sx={{ mt: 1 }}>
                       <Typography variant="body1" sx={{ color: "#34495e" }}>
-                        <strong style={{ color: "#16a085" }}>From:</strong> {tx.sender.substring(0, 6)}...{tx.sender.substring(tx.sender.length - 4)}
-                        {/* Sender address (shortened) */}
+                        <strong style={{ color: "#16a085" }}>From:</strong>{" "}
+                        {tx.sender ? `${tx.sender.substring(0, 6)}...${tx.sender.substring(tx.sender.length - 4)}` : "N/A"}
                       </Typography>
                       <Typography variant="body1" sx={{ color: "#34495e" }}>
-                        <strong style={{ color: "#c0392b" }}>To:</strong> {tx.recipient.substring(0, 6)}...{tx.recipient.substring(tx.recipient.length - 4)}
-                        {/* Recipient address (shortened) */}
+                        <strong style={{ color: "#c0392b" }}>To:</strong>{" "}
+                        {tx.recipient ? `${tx.recipient.substring(0, 6)}...${tx.recipient.substring(tx.recipient.length - 4)}` : "N/A"}
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ mt: 1, color: "#6e8efb", cursor: "pointer", textDecoration: "underline" }}
-                        onClick={() => toggleTxVisibility(index)} // Toggle hash visibility on click
+                        onClick={() => toggleTxVisibility(index)}
                       >
-                        <strong>Tx Hash:</strong> {visibleTx[index] ? `${tx.hash.substring(0, 6)}...${tx.hash.substring(tx.hash.length - 4)}` : "Click to show"}
-                        {/* Transaction hash (toggleable) */}
+                        <strong>Tx Hash:</strong>{" "}
+                        {tx.hash ? (visibleTx[index] ? `${tx.hash.substring(0, 6)}...${tx.hash.substring(tx.hash.length - 4)}` : "Click to show") : "N/A"}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#34495e" }}>
-                        <strong>Date:</strong> {new Date(tx.date).toLocaleString()} {/* Transaction date */}
+                        <strong>Date:</strong> {tx.date ? new Date(tx.date).toLocaleString() : "N/A"}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#34495e" }}>
-                        <strong>Gas:</strong> {tx.gas || "N/A"} ETH {/* Gas used (if available) */}
+                        <strong>Gas:</strong> {tx.gas || "N/A"} ETH
                       </Typography>
                     </Box>
                   </ListItem>

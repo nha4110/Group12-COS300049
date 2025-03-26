@@ -804,7 +804,7 @@
   "sourceMap": "60:559:19:-:0;;;118:104;;;;;;;;;;151:10;143:5;;:18;;;;;;;;;;;;;;;;;;60:559;;;;;;",
   "deployedSourceMap": "60:559:19:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;312:226;;;;;;;;;;;;;:::i;:::-;;89:20;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;312:226;382:5;;;;;;;;;;368:19;;:10;:19;;;360:65;;;;;;;;;;;;:::i;:::-;;;;;;;;;492:5;;;;;;;;;;484:23;;:46;508:21;484:46;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;312:226::o;89:20::-;;;;;;;;;;;;:::o;7:126:22:-;44:7;84:42;77:5;73:54;62:65;;7:126;;;:::o;139:96::-;176:7;205:24;223:5;205:24;:::i;:::-;194:35;;139:96;;;:::o;241:118::-;328:24;346:5;328:24;:::i;:::-;323:3;316:37;241:118;;:::o;365:222::-;458:4;496:2;485:9;481:18;473:26;;509:71;577:1;566:9;562:17;553:6;509:71;:::i;:::-;365:222;;;;:::o;593:169::-;677:11;711:6;706:3;699:19;751:4;746:3;742:14;727:29;;593:169;;;;:::o;768:220::-;908:34;904:1;896:6;892:14;885:58;977:3;972:2;964:6;960:15;953:28;768:220;:::o;994:366::-;1136:3;1157:67;1221:2;1216:3;1157:67;:::i;:::-;1150:74;;1233:93;1322:3;1233:93;:::i;:::-;1351:2;1346:3;1342:12;1335:19;;994:366;;;:::o;1366:419::-;1532:4;1570:2;1559:9;1555:18;1547:26;;1619:9;1613:4;1609:20;1605:1;1594:9;1590:17;1583:47;1647:131;1773:4;1647:131;:::i;:::-;1639:139;;1366:419;;;:::o",
   "source": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\n\r\ncontract YourContract {\r\n    address public owner;\r\n\r\n    constructor() {\r\n        owner = msg.sender;  // Set the owner to be the deployer of the contract\r\n    }\r\n\r\n    // Example function to transfer all funds (ETH) to the owner (admin address)\r\n    function transferAllToOwner() public {\r\n        require(msg.sender == owner, \"Only the owner can transfer funds\");\r\n\r\n        // Transfer all balance to the owner\r\n        payable(owner).transfer(address(this).balance);\r\n    }\r\n\r\n    // Fallback function to receive ETH\r\n    receive() external payable {}\r\n}\r\n",
-  "sourcePath": "C:\\Users\\Admin\\Documents\\GitHub\\Group12-COS300049\\backend\\contracts\\Contract.sol",
+  "sourcePath": "D:\\S2-group12\\Group12-COS300049\\backend\\contracts\\Contract.sol",
   "ast": {
     "absolutePath": "project:/contracts/Contract.sol",
     "exportedSymbols": {
@@ -1340,7 +1340,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.16",
-  "updatedAt": "2025-03-16T05:29:27.999Z",
+  "updatedAt": "2025-03-26T02:22:12.952Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},
